@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global rule for ALL collections
+    // Only allows full CRUD if the user is authenticated and has the specific email
+    match /{document=**} {
+      allow read, write: if request.auth != null && request.auth.token.email == "gauravpatil9262@gmail.com";
+    }
+  }
+}
