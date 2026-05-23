@@ -43,7 +43,7 @@ export const MOCK_ACCOUNT_STATUS = {
 // Playwright helper to inject mock state
 export async function injectMockUser(page: any, userType: keyof typeof MOCK_USERS) {
   const user = MOCK_USERS[userType];
-  const status = MOCK_ACCOUNT_STATUS[user.email];
+  const status = MOCK_ACCOUNT_STATUS[user.email as keyof typeof MOCK_ACCOUNT_STATUS];
   
   await page.addInitScript(`
     window.__E2E_MOCK_USER__ = ${JSON.stringify(user)};
