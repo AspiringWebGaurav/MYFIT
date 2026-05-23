@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/shared/store/useAppStore';
 
@@ -11,6 +11,23 @@ export function MobileShell() {
   const isUnlocked = useAppStore(state => state.isUnlocked);
   const setUnlocked = useAppStore(state => state.setUnlocked);
   const incrementSession = useAppStore(state => state.incrementSession);
+  const activePanel = useAppStore(state => state.activePanel);
+
+  // Synchronously restore the active panel from sessionStorage before paint
+  useLayoutEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('mobile_active_panel');
+      const validPanels = ['menu', 'attendance', 'diet', 'progress', 'workout', 'settings'];
+      if (saved && validPanels.includes(saved) && saved !== useAppStore.getState().activePanel) {
+        useAppStore.setState({ activePanel: saved as any });
+      }
+    }
+  }, []);
+
+  // Sync active panel changes to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem('mobile_active_panel', activePanel);
+  }, [activePanel]);
 
   // Cinematic 1.5s unlock sequence
   useEffect(() => {

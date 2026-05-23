@@ -15,7 +15,7 @@ export function GlassNavPill() {
       exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       className="absolute left-0 right-0 z-50 flex justify-center pointer-events-none"
-      style={{ top: 'env(safe-area-inset-top, 24px)', marginTop: '76px' }}
+      style={{ top: 'env(safe-area-inset-top, 24px)', marginTop: '64px' }}
     >
       <motion.button
         whileTap={{ scale: 0.95 }}

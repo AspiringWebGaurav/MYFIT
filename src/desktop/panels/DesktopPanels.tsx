@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/shared/store/useAuthStore";
 import { useDietStore } from "@/shared/store/useDietStore";
 import { useAttendanceStore } from "@/shared/store/useAttendanceStore";
-import { CheckCircle2, Loader2, Calendar } from "lucide-react";
-import { useEffect } from "react";
+import { useAppStore } from "@/shared/store/useAppStore";
+import { CheckCircle2, Check, Loader2, Calendar, Fingerprint } from "lucide-react";
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { LoginCalendar } from "@/shared/components/LoginCalendar";
 
 export function DesktopDashboard() {
@@ -90,9 +92,12 @@ export function DesktopDiet() {
 export function DesktopAttendance() {
   const user = useAuthStore(state => state.user);
   const isAttendedToday = useAttendanceStore(state => state.isAttendedToday);
-  const loading = useAttendanceStore(state => state.loading);
   const checkAttendanceStatus = useAttendanceStore(state => state.checkAttendanceStatus);
   const markAttendance = useAttendanceStore(state => state.markAttendance);
+  const incrementStreak = useAppStore(state => state.incrementStreak);
+
+  const [showPulse, setShowPulse] = useState(false);
+  const [interactionState, setInteractionState] = useState<'idle' | 'registering' | 'complete'>('idle');
 
   useEffect(() => {
     if (user) {
@@ -100,64 +105,112 @@ export function DesktopAttendance() {
     }
   }, [user, checkAttendanceStatus]);
 
-  const handleMarkAttendance = () => {
-    if (user && !isAttendedToday) {
-      markAttendance(user.uid);
+  const handleMarkAttendance = async () => {
+    if (user && !isAttendedToday && interactionState === 'idle') {
+      setInteractionState('registering');
+      
+      const networkPromise = markAttendance(user.uid);
+      const cinematicDelay = new Promise(resolve => setTimeout(resolve, 1200));
+      
+      await Promise.all([networkPromise, cinematicDelay]);
+      
+      incrementStreak();
+      
+      setInteractionState('complete');
+      setShowPulse(true);
+      setTimeout(() => setShowPulse(false), 2000);
     }
   };
 
+  const isLockedIn = isAttendedToday || interactionState === 'complete';
+  const isRegistering = interactionState === 'registering';
+
   return (
-    <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500 h-full">
-      <header>
-        <h2 className="text-3xl font-semibold tracking-tight text-white">Daily Attendance</h2>
-        <p className="text-zinc-400 mt-1">Consistency is the key to growth.</p>
+    <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden relative">
+      <AnimatePresence>
+        {showPulse && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 2 }}
+            exit={{ opacity: 0, scale: 3 }}
+            transition={{ duration: 1.5, ease: "easeOut" }}
+            className="absolute top-1/2 left-[30%] -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"
+          />
+        )}
+      </AnimatePresence>
+
+      <header className="shrink-0">
+        <h2 className="text-3xl font-semibold tracking-tight text-white mb-2 relative z-10">Daily Login</h2>
+        <p className="text-zinc-500 text-sm relative z-10">Lock in your discipline.</p>
       </header>
 
-      <div className="flex-1 flex gap-8 items-start justify-center pb-20 mt-8">
-        <Card className="w-[400px] shrink-0 p-10 bg-[#0b1620a8] border-cyan-400/10 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur-xl flex flex-col items-center text-center">
-          <div className={`h-40 w-40 rounded-full flex items-center justify-center mb-8 transition-all duration-700 ${isAttendedToday ? 'bg-green-500/10 text-green-400 scale-105' : 'bg-[#10202cb5] text-zinc-500 border border-cyan-400/10'}`}>
-            {loading ? (
-              <Loader2 className="h-10 w-10 animate-spin" />
-            ) : isAttendedToday ? (
-              <CheckCircle2 className="h-16 w-16" />
-            ) : (
-              <div className="flex flex-col items-center">
-                <span className="text-2xl font-semibold">0%</span>
-                <span className="text-xs uppercase tracking-widest mt-1 text-zinc-500">Completed</span>
-              </div>
-            )}
-          </div>
-          
-          <h3 className="text-xl font-medium text-zinc-100 mb-2">
-            {isAttendedToday ? "Workout Complete" : "Pending Session"}
-          </h3>
-          <p className="text-zinc-400 text-sm mb-8">
-            {isAttendedToday 
-              ? "Great job showing up today. Rest and recover." 
-              : "Log your daily session to keep the streak alive."}
-          </p>
-
-          <Button 
+      <div className="flex-1 flex gap-16 items-center justify-center mt-8 pb-10 w-full max-w-5xl mx-auto">
+        
+        {/* Left Side: Interactive Circle */}
+        <div className="flex-1 flex flex-col items-center justify-center relative z-10">
+          <motion.button 
+            layout
             onClick={handleMarkAttendance}
-            disabled={isAttendedToday || loading}
-            size="lg"
-            className={`w-full h-12 text-base font-medium transition-all ${
-              isAttendedToday 
-                ? 'bg-green-500/20 text-green-400 hover:bg-green-500/20' 
-                : 'bg-zinc-100 text-zinc-900 hover:bg-zinc-300'
+            disabled={isLockedIn || isRegistering}
+            whileTap={isLockedIn || isRegistering ? {} : { scale: 0.92 }}
+            className={`h-56 w-56 lg:h-64 lg:w-64 shrink-0 rounded-full flex flex-col items-center justify-center relative transition-all duration-700 outline-none overflow-hidden ${
+              isLockedIn 
+                ? 'bg-cyan-500/10 shadow-[0_0_30px_rgba(6,182,212,0.15)] cursor-default' 
+                : isRegistering
+                  ? 'bg-cyan-500/5 shadow-[0_0_40px_rgba(6,182,212,0.2)]'
+                  : 'bg-white/[0.03] hover:bg-white/[0.06] shadow-[0_0_20px_rgba(255,255,255,0.03)]'
             }`}
           >
-            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : isAttendedToday ? 'Done for the day' : 'Mark as Complete'}
-          </Button>
-        </Card>
-
-        <div className="flex flex-col gap-4">
-          <h3 className="text-lg font-medium text-white flex items-center gap-2 px-2">
-            <Calendar className="w-5 h-5 text-cyan-400" />
-            Login History
-          </h3>
-          <LoginCalendar />
+            <AnimatePresence mode="wait">
+              {isRegistering ? (
+                <motion.div
+                  key="registering"
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.8, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex flex-col items-center"
+                >
+                  <Loader2 className="h-12 w-12 text-cyan-400 animate-spin mb-3 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
+                  <span className="text-cyan-400 text-xs font-bold tracking-widest uppercase animate-pulse">Registering</span>
+                </motion.div>
+              ) : isLockedIn ? (
+                <motion.div
+                  key="locked"
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                  className="flex flex-col items-center"
+                >
+                  <Check className="h-14 w-14 text-cyan-400 mb-3 drop-shadow-[0_0_15px_rgba(6,182,212,0.8)]" strokeWidth={3} />
+                  <span className="text-cyan-100 text-base font-semibold tracking-wide">LOCKED IN</span>
+                </motion.div>
+              ) : (
+                <motion.div 
+                  key="idle"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ scale: 1.2, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex flex-col items-center text-zinc-400 group-hover:text-zinc-200 transition-colors"
+                >
+                  <Fingerprint className="h-16 w-16 mb-3 opacity-80" strokeWidth={1.5} />
+                  <span className="text-sm font-bold tracking-widest uppercase opacity-80 leading-snug text-center">Click to<br/>Punch</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.button>
         </div>
+
+        {/* Right Side: Calendar */}
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="flex-1 max-w-[400px] shrink-0 relative z-10"
+        >
+          <LoginCalendar />
+        </motion.div>
       </div>
     </div>
   );

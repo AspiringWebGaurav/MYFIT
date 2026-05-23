@@ -80,6 +80,8 @@ export function InstallPwaPrompt({ variant = 'mobile' }: InstallPwaPromptProps) 
       if (isSafari) {
         setShowIosInstructions(true);
         setTimeout(() => setShowIosInstructions(false), 5000); // Hide after 5 seconds
+      } else {
+        alert("To install the app, look for the install icon in your browser's address bar or menu.");
       }
     }
   };
@@ -108,13 +110,10 @@ export function InstallPwaPrompt({ variant = 'mobile' }: InstallPwaPromptProps) 
       <div className="w-full">
         <button
           onClick={isInstalled ? undefined : handleInstallClick}
-          disabled={isInstalled || (!deferredPrompt && !isSafari)}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
             isInstalled 
               ? 'bg-green-500/10 text-green-400 shadow-[0_0_0_1px_rgba(74,222,128,0.1)] cursor-default'
-              : (!deferredPrompt && !isSafari)
-                ? 'opacity-0 h-0 p-0 m-0 overflow-hidden absolute pointer-events-none' // Hide if unavailable
-                : 'bg-[#10202cb5] text-zinc-100 hover:bg-cyan-500/10 hover:text-cyan-400 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]'
+              : 'bg-[#10202cb5] text-zinc-100 hover:bg-cyan-500/10 hover:text-cyan-400 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]'
           }`}
         >
           {isInstalled ? <CheckCircle2 className="h-4 w-4" /> : <Download className="h-4 w-4" />}
@@ -126,44 +125,51 @@ export function InstallPwaPrompt({ variant = 'mobile' }: InstallPwaPromptProps) 
 
   // Mobile Variant
   return (
-    <div className="w-full">
+    <div className="w-full transition-all duration-300">
       <button
         onClick={isInstalled ? undefined : handleInstallClick}
-        disabled={isInstalled || (!deferredPrompt && !isSafari)}
-        className={`w-full h-12 rounded-xl flex items-center justify-center gap-2 font-medium tracking-wide transition-all ${
+        disabled={isInstalled}
+        className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all ${
           isInstalled 
-            ? 'bg-green-500/10 text-green-400 border border-green-500/20 cursor-default'
-            : (!deferredPrompt && !isSafari)
-              ? 'opacity-0 h-0 p-0 overflow-hidden absolute pointer-events-none' // Hide if unavailable
-              : 'bg-[#10202cb5] text-cyan-400 border border-cyan-400/20 hover:bg-cyan-500/10'
+            ? 'bg-white/[0.02] border border-white/[0.05] cursor-default'
+            : 'bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.08] active:scale-[0.98]'
         }`}
       >
-        <AnimatePresence mode="wait">
-          {showIosInstructions ? (
-            <motion.div 
-              key="ios"
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -5 }}
-              className="flex items-center gap-2 text-xs"
-            >
-              <Info className="h-4 w-4" />
-              <span>Tap Share ➔ Add to Home Screen</span>
-            </motion.div>
-          ) : (
-            <motion.div 
-              key="default"
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -5 }}
-              className="flex items-center gap-2"
-            >
-              {isInstalled ? <CheckCircle2 className="h-5 w-5" /> : <Download className="h-5 w-5" />}
-              <span>{isInstalled ? 'MYFIT Installed' : 'Install MYFIT'}</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-lg ${isInstalled ? 'bg-green-500/10 text-green-400' : 'bg-cyan-500/10 text-cyan-400'}`}>
+            {isInstalled ? <CheckCircle2 className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+          </div>
+          <span className={`text-sm font-medium ${isInstalled ? 'text-zinc-300' : 'text-zinc-100'}`}>
+            {isInstalled ? 'MYFIT Installed' : 'Install App'}
+          </span>
+        </div>
+        {!isInstalled && (
+          <span className="text-xs text-zinc-500 font-medium tracking-wide">
+            {isSafari ? 'Add to Home' : 'Get App'}
+          </span>
+        )}
       </button>
+
+      <AnimatePresence>
+        {showIosInstructions && !isInstalled && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+            animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 py-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-cyan-400">
+                <Info className="h-4 w-4 shrink-0" />
+                <span className="text-xs font-medium">iOS Install</span>
+              </div>
+              <span className="text-xs text-cyan-100/70 leading-relaxed">
+                Tap the <strong className="text-cyan-100">Share</strong> icon at the bottom of your screen, then select <strong className="text-cyan-100">Add to Home Screen</strong>.
+              </span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LayoutDashboard, Utensils, CheckCircle, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/shared/store/useAuthStore';
@@ -11,9 +11,22 @@ import { InstallPwaPrompt } from '@/shared/components/InstallPwaPrompt';
 type PanelType = 'dashboard' | 'diet' | 'attendance';
 
 export function DesktopShell() {
-  const [activePanel, setActivePanel] = useState<PanelType>('dashboard');
+  const [activePanel, setActivePanel] = useState<PanelType>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('desktop_active_panel');
+      if (saved === 'dashboard' || saved === 'diet' || saved === 'attendance') {
+        return saved;
+      }
+    }
+    return 'dashboard';
+  });
+
   const logout = useAuthStore(state => state.logout);
   const user = useAuthStore(state => state.user);
+
+  useEffect(() => {
+    sessionStorage.setItem('desktop_active_panel', activePanel);
+  }, [activePanel]);
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
