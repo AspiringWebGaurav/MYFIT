@@ -190,92 +190,169 @@ export function DesktopLogin() {
               </p>
             </div>
 
-            <AnimatePresence>
-              {error === 'unauthorized' && (
+            <AnimatePresence mode="wait">
+              {(error === 'unauthorized' || error === 'pending' || error === 'rejected' || authStatus === 'approved') && (
                 <motion.div 
+                  key={error || authStatus}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                   className="w-full mb-8 flex flex-col gap-5 relative"
                 >
-                  {/* Premium ambient glow for unauthorized state */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-purple-500/5 rounded-3xl blur-xl" />
+                  {/* Premium ambient glow for state */}
+                  <div className={`absolute inset-0 bg-gradient-to-br ${authStatus === 'approved' ? 'from-teal-500/10 to-emerald-500/5' : error === 'rejected' ? 'from-red-500/5 to-rose-500/5' : error === 'pending' ? 'from-amber-500/5 to-orange-500/5' : 'from-cyan-500/5 to-purple-500/5'} rounded-3xl blur-xl transition-colors duration-500`} />
                   
                   {/* Message Block */}
-                  <div className="relative w-full bg-[#041222]/80 border border-cyan-500/20 p-6 rounded-3xl backdrop-blur-xl shadow-[0_8px_32px_rgba(6,182,212,0.1)] overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent opacity-50" />
-                    <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-teal-400/20 to-transparent opacity-50" />
+                  <div className={`relative w-full bg-[#041222]/80 border ${authStatus === 'approved' ? 'border-teal-500/30 shadow-[0_8px_32px_rgba(20,184,166,0.15)]' : error === 'rejected' ? 'border-red-500/20 shadow-[0_8px_32px_rgba(239,68,68,0.1)]' : error === 'pending' ? 'border-amber-500/20 shadow-[0_8px_32px_rgba(245,158,11,0.1)]' : 'border-cyan-500/20 shadow-[0_8px_32px_rgba(6,182,212,0.1)]'} p-6 rounded-3xl backdrop-blur-xl overflow-hidden group transition-all duration-500`}>
+                    <div className={`absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent ${authStatus === 'approved' ? 'via-teal-400/40' : error === 'rejected' ? 'via-red-400/40' : error === 'pending' ? 'via-amber-400/40' : 'via-cyan-400/40'} to-transparent opacity-50`} />
+                    <div className={`absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent ${authStatus === 'approved' ? 'via-emerald-400/20' : error === 'rejected' ? 'via-rose-400/20' : error === 'pending' ? 'via-orange-400/20' : 'via-teal-400/20'} to-transparent opacity-50`} />
                     
                     <div className="flex items-start gap-4">
                       {/* Soft Animated Icon */}
                       <motion.div 
                         animate={{ 
-                          boxShadow: ["0 0 0px rgba(45,212,191,0)", "0 0 15px rgba(45,212,191,0.2)", "0 0 0px rgba(45,212,191,0)"] 
+                          boxShadow: authStatus === 'approved' ? ["0 0 0px rgba(20,184,166,0)", "0 0 15px rgba(20,184,166,0.3)", "0 0 0px rgba(20,184,166,0)"] : error === 'rejected' ? ["0 0 0px rgba(239,68,68,0)", "0 0 15px rgba(239,68,68,0.2)", "0 0 0px rgba(239,68,68,0)"] : error === 'pending' ? ["0 0 0px rgba(245,158,11,0)", "0 0 15px rgba(245,158,11,0.2)", "0 0 0px rgba(245,158,11,0)"] : ["0 0 0px rgba(45,212,191,0)", "0 0 15px rgba(45,212,191,0.2)", "0 0 0px rgba(45,212,191,0)"] 
                         }}
                         transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                        className="flex-shrink-0 w-10 h-10 rounded-full bg-cyan-950/40 border border-cyan-500/30 flex items-center justify-center mt-1"
+                        className={`flex-shrink-0 w-10 h-10 rounded-full ${authStatus === 'approved' ? 'bg-teal-950/40 border-teal-500/40' : error === 'rejected' ? 'bg-red-950/40 border-red-500/30' : error === 'pending' ? 'bg-amber-950/40 border-amber-500/30' : 'bg-cyan-950/40 border-cyan-500/30'} border flex items-center justify-center mt-1`}
                       >
-                        <span className="text-cyan-300/80 text-lg">🔒</span>
+                        {authStatus === 'approved' ? (
+                          <span className="text-teal-400 text-lg">✓</span>
+                        ) : error === 'rejected' ? (
+                          <span className="text-red-400 text-lg">✕</span>
+                        ) : error === 'pending' ? (
+                          <span className="text-amber-400 text-lg">⏳</span>
+                        ) : (
+                          <span className="text-cyan-300/80 text-lg">🔒</span>
+                        )}
                       </motion.div>
                       
                       <div className="flex flex-col gap-2 text-left">
                         <p className="text-white font-medium text-[15px] leading-snug">
-                          Ohoo 👋<br/>
-                          Looks like your account doesn&apos;t currently have access to this private MYFIT space.
+                          {authStatus === 'approved' ? (
+                            <>Access Granted 👋<br/>Your account has been approved.</>
+                          ) : error === 'rejected' ? (
+                            <>Access Unavailable<br/>This account request was not approved.</>
+                          ) : error === 'pending' ? (
+                            <>Request Under Review<br/>Your request is still being reviewed.</>
+                          ) : (
+                            <>Ohoo 👋<br/>Looks like your account doesn&apos;t currently have access to this private MYFIT space.</>
+                          )}
                         </p>
-                        <p className="text-cyan-100/60 text-sm font-light leading-relaxed">
-                          This personal fitness system is currently limited to approved accounts only.
+                        <p className={`text-sm font-light leading-relaxed ${authStatus === 'approved' ? 'text-teal-100/70' : error === 'rejected' ? 'text-red-100/60' : error === 'pending' ? 'text-amber-100/60' : 'text-cyan-100/60'}`}>
+                          {authStatus === 'approved' ? (
+                            <span className="flex items-center gap-2">
+                              <motion.span
+                                animate={{ opacity: [0.4, 1, 0.4] }}
+                                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                                className="w-1.5 h-1.5 rounded-full bg-teal-400"
+                              />
+                              Preparing your MYFIT workspace...
+                            </span>
+                          ) : error === 'rejected' ? (
+                            'Try another account or request access later.'
+                          ) : error === 'pending' ? (
+                            'We will notify you once an admin has reviewed your request.'
+                          ) : (
+                            'This personal fitness system is currently limited to approved accounts only.'
+                          )}
                         </p>
                       </div>
                     </div>
                   </div>
 
                   {/* Actions */}
-                  <div className="flex flex-col items-center gap-5 relative z-10 mt-1">
-                    <motion.button
-                      onClick={handleRequestAccess}
-                      disabled={isRequesting}
-                      whileHover={!isRequesting ? { scale: 1.02 } : {}}
-                      whileTap={!isRequesting ? { scale: 0.98 } : {}}
-                      className="w-full bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/20 hover:border-cyan-400/40 text-cyan-50 py-3.5 rounded-2xl text-[15px] font-medium transition-all duration-300 shadow-[0_0_20px_rgba(6,182,212,0.05)] hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] flex items-center justify-center gap-2 group overflow-hidden relative"
-                    >
-                      <AnimatePresence>
-                        {isRequesting && (
-                          <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="absolute inset-0 z-0 bg-cyan-900/40"
-                          >
-                             <motion.div
-                                animate={{ x: ['-100%', '100%'] }}
-                                transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-                                className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-cyan-400/20 to-transparent skew-x-12"
-                             />
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                      <span className="relative z-10">{isRequesting ? 'Requesting...' : 'Request Access'}</span>
-                      {!isRequesting && (
-                        <motion.span 
-                          className="opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300 relative z-10"
+                  {authStatus !== 'approved' && (
+                    <div className="flex flex-col items-center gap-5 relative z-10 mt-1">
+                      {error === 'unauthorized' && (
+                        <motion.button
+                          onClick={handleRequestAccess}
+                          disabled={isRequesting}
+                          whileHover={!isRequesting ? { scale: 1.02 } : {}}
+                          whileTap={!isRequesting ? { scale: 0.98 } : {}}
+                          className="w-full bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/20 hover:border-cyan-400/40 text-cyan-50 py-3.5 rounded-2xl text-[15px] font-medium transition-all duration-300 shadow-[0_0_20px_rgba(6,182,212,0.05)] hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] flex items-center justify-center gap-2 group overflow-hidden relative"
                         >
-                          →
-                        </motion.span>
+                          <AnimatePresence>
+                            {isRequesting && (
+                              <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="absolute inset-0 z-0 bg-cyan-900/40"
+                              >
+                                <motion.div
+                                    animate={{ x: ['-100%', '100%'] }}
+                                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                                    className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-cyan-400/20 to-transparent skew-x-12"
+                                />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                          <span className="relative z-10">{isRequesting ? 'Requesting...' : 'Request Access'}</span>
+                          {!isRequesting && (
+                            <motion.span 
+                              className="opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300 relative z-10"
+                            >
+                              →
+                            </motion.span>
+                          )}
+                        </motion.button>
                       )}
-                    </motion.button>
-                    
-                    <div className="flex flex-col items-center gap-1.5">
-                      <span className="text-[13px] text-cyan-100/40">Think this is a mistake?</span>
-                      <button 
-                        onClick={handleSwitchAccount}
-                        className="text-[14px] text-cyan-400 hover:text-cyan-300 font-medium transition-all duration-300 hover:drop-shadow-[0_0_12px_rgba(34,211,238,0.6)] relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:w-full after:h-[1px] after:bg-cyan-400/30 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300 after:origin-left"
-                      >
-                        Try another Google account
-                      </button>
+                      
+                      {error === 'rejected' && (
+                        <motion.button
+                          onClick={handleRequestAccess}
+                          disabled={isRequesting}
+                          whileHover={!isRequesting ? { scale: 1.02 } : {}}
+                          whileTap={!isRequesting ? { scale: 0.98 } : {}}
+                          className="w-full bg-red-950/20 hover:bg-red-900/40 border border-red-500/20 hover:border-red-400/40 text-red-50 py-3.5 rounded-2xl text-[15px] font-medium transition-all duration-300 shadow-[0_0_20px_rgba(239,68,68,0.05)] flex items-center justify-center gap-2 group overflow-hidden relative"
+                        >
+                          <AnimatePresence>
+                            {isRequesting && (
+                              <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="absolute inset-0 z-0 bg-red-900/40"
+                              >
+                                <motion.div
+                                    animate={{ x: ['-100%', '100%'] }}
+                                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                                    className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-red-400/20 to-transparent skew-x-12"
+                                />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                          <span className="relative z-10">{isRequesting ? 'Requesting...' : 'Request Again'}</span>
+                        </motion.button>
+                      )}
+                      
+                      {error === 'pending' && (
+                        <motion.button
+                          onClick={() => {
+                            clearError();
+                            clearRequestPayload();
+                          }}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          className="w-full bg-amber-950/20 hover:bg-amber-900/30 border border-amber-500/20 hover:border-amber-400/40 text-amber-50 py-3.5 rounded-2xl text-[15px] font-medium transition-all duration-300 shadow-[0_0_20px_rgba(245,158,11,0.05)] flex items-center justify-center gap-2 group"
+                        >
+                          Close
+                        </motion.button>
+                      )}
+                      
+                      <div className="flex flex-col items-center gap-1.5">
+                        {error === 'unauthorized' && <span className="text-[13px] text-cyan-100/40">Think this is a mistake?</span>}
+                        <button 
+                          onClick={handleSwitchAccount}
+                          className={`text-[14px] ${error === 'rejected' ? 'text-red-400 hover:text-red-300' : error === 'pending' ? 'text-amber-400 hover:text-amber-300' : 'text-cyan-400 hover:text-cyan-300'} font-medium transition-all duration-300 relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:w-full after:h-[1px] ${error === 'rejected' ? 'after:bg-red-400/30' : error === 'pending' ? 'after:bg-amber-400/30' : 'after:bg-cyan-400/30'} after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300 after:origin-left`}
+                        >
+                          Try another Google account
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

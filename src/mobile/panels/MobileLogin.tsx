@@ -352,14 +352,17 @@ export function MobileLogin() {
         </motion.div>
       </motion.div>
 
-      {/* Unauthorized Bottom Sheet Popup */}
-      <AnimatePresence>
-        {error === 'unauthorized' && (
+      {/* Status Bottom Sheet Popup */}
+      <AnimatePresence mode="wait">
+        {(error === 'unauthorized' || error === 'pending' || error === 'rejected' || authStatus === 'approved') && (
           <motion.div 
+            key={error || authStatus}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => clearError()}
+            onClick={() => {
+              if (authStatus !== 'approved') clearError();
+            }}
             className="fixed inset-0 z-50 flex flex-col justify-end p-4 pb-8 sm:p-6 bg-[#020B1A]/90 cursor-pointer"
           >
             <motion.div
@@ -368,82 +371,162 @@ export function MobileLogin() {
               exit={{ y: '100%', scale: 0.95 }}
               transition={{ duration: 0.5, ease: cinematicEase }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full bg-[#041222]/95 border border-cyan-500/30 p-6 rounded-[2rem] shadow-[0_-8px_40px_rgba(6,182,212,0.2)] overflow-hidden cursor-default"
+              className={`relative w-full bg-[#041222]/95 border ${authStatus === 'approved' ? 'border-teal-500/30' : error === 'rejected' ? 'border-red-500/30' : error === 'pending' ? 'border-amber-500/30' : 'border-cyan-500/30'} p-6 rounded-[2rem] shadow-[0_-8px_40px_rgba(0,0,0,0.5)] overflow-hidden cursor-default transition-colors duration-500`}
             >
-              <button
-                onClick={() => clearError()}
-                className="absolute top-4 right-4 p-2 text-cyan-500/50 hover:text-cyan-300 hover:bg-cyan-500/10 rounded-full transition-all duration-300 z-20 group"
-              >
-                <div className="absolute inset-0 bg-cyan-400/20 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <X className="w-5 h-5 relative z-10" strokeWidth={1.5} />
-              </button>
+              {authStatus !== 'approved' && (
+                <button
+                  onClick={() => clearError()}
+                  className="absolute top-4 right-4 p-2 text-cyan-500/50 hover:text-cyan-300 hover:bg-cyan-500/10 rounded-full transition-all duration-300 z-20 group"
+                >
+                  <div className="absolute inset-0 bg-cyan-400/20 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <X className="w-5 h-5 relative z-10" strokeWidth={1.5} />
+                </button>
+              )}
 
               {/* Subtle Top Cinematic Edge Glow */}
-              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent opacity-80" />
+              <div className={`absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent ${authStatus === 'approved' ? 'via-teal-400/50' : error === 'rejected' ? 'via-red-400/50' : error === 'pending' ? 'via-amber-400/50' : 'via-cyan-400/50'} to-transparent opacity-80`} />
               
               {/* Internal ambient glow */}
-              <div className="absolute inset-0 bg-gradient-to-t from-cyan-500/10 to-teal-500/5 rounded-[2rem] blur-xl z-0 pointer-events-none" />
+              <div className={`absolute inset-0 bg-gradient-to-t ${authStatus === 'approved' ? 'from-teal-500/10 to-emerald-500/5' : error === 'rejected' ? 'from-red-500/10 to-rose-500/5' : error === 'pending' ? 'from-amber-500/10 to-orange-500/5' : 'from-cyan-500/10 to-teal-500/5'} rounded-[2rem] blur-xl z-0 pointer-events-none transition-colors duration-500`} />
 
               <div className="relative z-10 flex flex-col items-center text-center">
                 {/* Animated Mobile Icon */}
                 <motion.div 
                   animate={{ 
-                    boxShadow: ["0 0 0px rgba(34,211,238,0)", "0 0 20px rgba(34,211,238,0.3)", "0 0 0px rgba(34,211,238,0)"] 
+                    boxShadow: authStatus === 'approved' ? ["0 0 0px rgba(20,184,166,0)", "0 0 20px rgba(20,184,166,0.3)", "0 0 0px rgba(20,184,166,0)"] : error === 'rejected' ? ["0 0 0px rgba(239,68,68,0)", "0 0 20px rgba(239,68,68,0.3)", "0 0 0px rgba(239,68,68,0)"] : error === 'pending' ? ["0 0 0px rgba(245,158,11,0)", "0 0 20px rgba(245,158,11,0.3)", "0 0 0px rgba(245,158,11,0)"] : ["0 0 0px rgba(34,211,238,0)", "0 0 20px rgba(34,211,238,0.3)", "0 0 0px rgba(34,211,238,0)"] 
                   }}
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                  className="w-14 h-14 rounded-full bg-cyan-950/50 border border-cyan-400/40 flex items-center justify-center mb-4 shrink-0"
+                  className={`w-14 h-14 rounded-full ${authStatus === 'approved' ? 'bg-teal-950/50 border-teal-400/40' : error === 'rejected' ? 'bg-red-950/50 border-red-400/40' : error === 'pending' ? 'bg-amber-950/50 border-amber-400/40' : 'bg-cyan-950/50 border-cyan-400/40'} border flex items-center justify-center mb-4 shrink-0 transition-colors duration-500`}
                 >
-                  <span className="text-cyan-300 text-[22px]">🔒</span>
+                  {authStatus === 'approved' ? (
+                    <span className="text-teal-300 text-[22px]">✓</span>
+                  ) : error === 'rejected' ? (
+                    <span className="text-red-300 text-[22px]">✕</span>
+                  ) : error === 'pending' ? (
+                    <span className="text-amber-300 text-[22px]">⏳</span>
+                  ) : (
+                    <span className="text-cyan-300 text-[22px]">🔒</span>
+                  )}
                 </motion.div>
                 
                 <h3 className="text-white font-medium text-[18px] leading-snug mb-2 drop-shadow-sm">
-                  Ohoo 👋<br/>
-                  Looks like this MYFIT space is private.
+                  {authStatus === 'approved' ? (
+                    <>Access Granted 👋<br/>Your account has been approved.</>
+                  ) : error === 'rejected' ? (
+                    <>Access Unavailable<br/>This account request was not approved.</>
+                  ) : error === 'pending' ? (
+                    <>Request Under Review<br/>Your request is still being reviewed.</>
+                  ) : (
+                    <>Ohoo 👋<br/>Looks like this MYFIT space is private.</>
+                  )}
                 </h3>
                 
-                <p className="text-cyan-50/70 text-[14px] font-light leading-relaxed mb-4">
-                  This app currently supports only approved personal accounts.
+                <p className={`text-[14px] font-light leading-relaxed mb-4 ${authStatus === 'approved' ? 'text-teal-50/70' : error === 'rejected' ? 'text-red-50/70' : error === 'pending' ? 'text-amber-50/70' : 'text-cyan-50/70'}`}>
+                  {authStatus === 'approved' ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <motion.span
+                        animate={{ opacity: [0.4, 1, 0.4] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                        className="w-1.5 h-1.5 rounded-full bg-teal-400"
+                      />
+                      Preparing your MYFIT workspace...
+                    </span>
+                  ) : error === 'rejected' ? (
+                    'Try another account or request access later.'
+                  ) : error === 'pending' ? (
+                    'We will notify you once an admin has reviewed your request.'
+                  ) : (
+                    'This app currently supports only approved personal accounts.'
+                  )}
                 </p>
                 
-                <p className="text-cyan-100/50 text-[13px] font-light leading-snug mb-6 max-w-[280px]">
-                  If you think this is a mistake, try another Google account or request access.
-                </p>
-                
-                {/* Mobile Touch-Optimized Actions */}
-                <div className="flex flex-col w-full gap-3">
-                  <motion.button
-                    onClick={handleRequestAccess}
-                    disabled={isRequesting}
-                    whileTap={!isRequesting ? { scale: 0.96 } : {}}
-                    className="w-full bg-cyan-500/10 border border-cyan-400/30 active:bg-cyan-500/20 text-cyan-50 py-3.5 rounded-[1.25rem] text-[15px] font-medium transition-colors shadow-[0_0_15px_rgba(6,182,212,0.1)] flex items-center justify-center relative overflow-hidden"
-                  >
-                    <AnimatePresence>
-                      {isRequesting && (
-                        <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="absolute inset-0 z-0 bg-cyan-500/20"
+                {authStatus !== 'approved' && (
+                  <>
+                    {error === 'unauthorized' && (
+                      <p className="text-cyan-100/50 text-[13px] font-light leading-snug mb-6 max-w-[280px]">
+                        If you think this is a mistake, try another Google account or request access.
+                      </p>
+                    )}
+                    
+                    {/* Mobile Touch-Optimized Actions */}
+                    <div className={`flex flex-col w-full gap-3 ${error !== 'unauthorized' ? 'mt-2' : ''}`}>
+                      {error === 'unauthorized' && (
+                        <motion.button
+                          onClick={handleRequestAccess}
+                          disabled={isRequesting}
+                          whileTap={!isRequesting ? { scale: 0.96 } : {}}
+                          className="w-full bg-cyan-500/10 border border-cyan-400/30 active:bg-cyan-500/20 text-cyan-50 py-3.5 rounded-[1.25rem] text-[15px] font-medium transition-colors shadow-[0_0_15px_rgba(6,182,212,0.1)] flex items-center justify-center relative overflow-hidden"
                         >
-                           <motion.div
-                              animate={{ x: ['-100%', '100%'] }}
-                              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-                              className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent skew-x-12"
-                           />
-                        </motion.div>
+                          <AnimatePresence>
+                            {isRequesting && (
+                              <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="absolute inset-0 z-0 bg-cyan-500/20"
+                              >
+                                 <motion.div
+                                    animate={{ x: ['-100%', '100%'] }}
+                                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                                    className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent skew-x-12"
+                                 />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                          <span className="relative z-10">{isRequesting ? 'Requesting...' : 'Request Access'}</span>
+                        </motion.button>
                       )}
-                    </AnimatePresence>
-                    <span className="relative z-10">{isRequesting ? 'Requesting...' : 'Request Access'}</span>
-                  </motion.button>
-                  
-                  <motion.button 
-                    whileTap={{ scale: 0.96 }}
-                    onClick={handleSwitchAccount}
-                    className="text-[14px] text-cyan-400 font-medium py-2 active:text-cyan-300 transition-colors"
-                  >
-                    Try another account
-                  </motion.button>
-                </div>
+                      
+                      {error === 'rejected' && (
+                        <motion.button
+                          onClick={handleRequestAccess}
+                          disabled={isRequesting}
+                          whileTap={!isRequesting ? { scale: 0.96 } : {}}
+                          className="w-full bg-red-500/10 border border-red-400/30 active:bg-red-500/20 text-red-50 py-3.5 rounded-[1.25rem] text-[15px] font-medium transition-colors shadow-[0_0_15px_rgba(239,68,68,0.1)] flex items-center justify-center relative overflow-hidden"
+                        >
+                          <AnimatePresence>
+                            {isRequesting && (
+                              <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="absolute inset-0 z-0 bg-red-500/20"
+                              >
+                                 <motion.div
+                                    animate={{ x: ['-100%', '100%'] }}
+                                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                                    className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-red-400/30 to-transparent skew-x-12"
+                                 />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                          <span className="relative z-10">{isRequesting ? 'Requesting...' : 'Request Again'}</span>
+                        </motion.button>
+                      )}
+                      
+                      {error === 'pending' && (
+                        <motion.button
+                          onClick={() => {
+                            clearError();
+                            clearRequestPayload();
+                          }}
+                          whileTap={{ scale: 0.96 }}
+                          className="w-full bg-amber-500/10 border border-amber-400/30 active:bg-amber-500/20 text-amber-50 py-3.5 rounded-[1.25rem] text-[15px] font-medium transition-colors shadow-[0_0_15px_rgba(245,158,11,0.1)] flex items-center justify-center relative overflow-hidden"
+                        >
+                          <span className="relative z-10">Close</span>
+                        </motion.button>
+                      )}
+                      
+                      <motion.button 
+                        whileTap={{ scale: 0.96 }}
+                        onClick={handleSwitchAccount}
+                        className={`text-[14px] ${error === 'rejected' ? 'text-red-400 active:text-red-300' : error === 'pending' ? 'text-amber-400 active:text-amber-300' : 'text-cyan-400 active:text-cyan-300'} font-medium py-2 transition-colors`}
+                      >
+                        Try another account
+                      </motion.button>
+                    </div>
+                  </>
+                )}
               </div>
             </motion.div>
           </motion.div>

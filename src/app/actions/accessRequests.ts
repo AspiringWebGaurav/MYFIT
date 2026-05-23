@@ -74,3 +74,40 @@ export async function submitAccessRequest(payload: { email: string; displayName:
     return { success: false, error: "Failed to submit request" };
   }
 }
+
+export type AccountStatusResult = 
+  | { status: 'approved' }
+  | { status: 'pending' | 'rejected' | 'unrequested' };
+
+export async function checkAccountStatus(email: string): Promise<AccountStatusResult> {
+  if (!email) return { status: 'unrequested' };
+  const lowerEmail = email.toLowerCase();
+  
+  try {
+    // 1. Check if approved
+    const approvedRef = adminDb.collection('approved_users').doc(lowerEmail);
+    const approvedDoc = await approvedRef.get();
+    if (approvedDoc.exists) {
+      return { status: 'approved' };
+    }
+    
+    // 2. Check latest access request
+    const requestsRef = adminDb.collection('access_requests');
+    const existingQuery = await requestsRef
+      .where('email', '==', lowerEmail)
+      .orderBy('timestamp', 'desc')
+      .limit(1)
+      .get();
+      
+    if (!existingQuery.empty) {
+      const latestRequest = existingQuery.docs[0].data();
+      if (latestRequest.status === 'pending') return { status: 'pending' };
+      if (latestRequest.status === 'rejected') return { status: 'rejected' };
+    }
+    
+    return { status: 'unrequested' };
+  } catch (error) {
+    console.error("Error checking account status:", error);
+    return { status: 'unrequested' };
+  }
+}

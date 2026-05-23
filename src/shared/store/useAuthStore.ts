@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { User, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, googleProvider, db } from '../firebase/config';
 import { doc, getDoc } from 'firebase/firestore';
+import { checkAccountStatus } from '@/app/actions/accessRequests';
 
 // 1. Non-Reactive Module-Level Locks & Refs
 let popupSessionActive = false;
@@ -14,7 +15,7 @@ googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
 
-export type AuthStatus = 'idle' | 'loading' | 'success' | 'error';
+export type AuthStatus = 'idle' | 'loading' | 'success' | 'approved' | 'error';
 
 interface AuthState {
   user: User | null;
@@ -83,33 +84,55 @@ export const useAuthStore = create<AuthState>()(
       if (currentAttempt !== authAttemptId) return;
 
       const userEmail = result.user.email?.toLowerCase();
-      let isApproved = false;
       
-      if (userEmail === 'gauravpatil9262@gmail.com') {
-        isApproved = true;
-      } else if (userEmail) {
-        try {
-          const docRef = doc(db, 'approved_users', userEmail);
-          const docSnap = await getDoc(docRef);
-          isApproved = docSnap.exists();
-        } catch (e) {
-          console.error("Failed to check approval status", e);
-        }
-      }
+      const payload = {
+        email: result.user.email || '',
+        displayName: result.user.displayName || 'Unknown User',
+        timestamp: Date.now()
+      };
 
-      if (!isApproved) {
-        const payload = {
-          email: result.user.email || '',
-          displayName: result.user.displayName || 'Unknown User',
-          timestamp: Date.now()
-        };
-        await signOut(auth);
-        set({ authStatus: 'error', error: 'unauthorized', user: null, requestPayload: payload });
-        popupSessionActive = false;
+      if (userEmail === 'gauravpatil9262@gmail.com') {
+        set({ user: result.user, authStatus: 'success', error: null });
         return;
       }
-      
-      set({ user: result.user, authStatus: 'success', error: null });
+
+      let accountStatus = 'unrequested';
+      if (userEmail) {
+        const res = await checkAccountStatus(userEmail);
+        accountStatus = res.status;
+      }
+
+      if (accountStatus === 'approved') {
+        // Show "Approved" modal for a short time before transitioning
+        set({ authStatus: 'approved', error: null });
+        
+        // We will wait for `useLoaderStore` readiness inside the UI, but 
+        // to actually transition, we set the user and success status.
+        // We defer this so the UI has time to render the 'approved' state.
+        // But the user requested not to use a fixed timeout! 
+        // "Show 'Preparing your MYFIT workspace...' only until: auth state resolved, user loaded, app shell ready"
+        // If we set `user` immediately, `AppShell` immediately mounts `DesktopShell`.
+        // To allow the login screen to render the success state, we can set `user` and `authStatus: 'success'` immediately, 
+        // but `AppShell` will unmount `DesktopLogin`. Wait, if we unmount `DesktopLogin`, the modal disappears immediately!
+        // To fix this without fixed timeouts: set `user` and let `AppShell` mount `DesktopShell`. 
+        // BUT wait, they said "Show Preparing your MYFIT workspace... only until app shell ready".
+        // `AppShell` already shows `GlobalLoader` if `!isInitialAuthReady` or `!initialized`.
+        // Actually, setting `user` will trigger the crossfade.
+        // If they want the modal *inside* the login screen to show "Preparing your MYFIT workspace...", 
+        // we can set `user` and the login screen will stay mounted until `AppShell` completes the fade transition (1 second).
+        // Let's just set `authStatus: 'approved'` and immediately set `user`.
+        
+        // Wait, if we set `user: result.user`, Zustand updates `AppShell`, which switches to `DesktopShell`.
+        // `DesktopLogin` will play its `exit` animation (1s fade out).
+        set({ user: result.user, authStatus: 'approved', error: null });
+        return;
+      }
+
+      // Unauthorized flows
+      await signOut(auth);
+      set({ authStatus: 'error', error: accountStatus === 'unrequested' ? 'unauthorized' : accountStatus, user: null, requestPayload: payload });
+      popupSessionActive = false;
+      return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       // Cleanup timeout
@@ -150,24 +173,33 @@ export const useAuthStore = create<AuthState>()(
   setUser: async (user) => {
     if (user) {
       const userEmail = user.email?.toLowerCase();
-      let isApproved = false;
       
       if (userEmail === 'gauravpatil9262@gmail.com') {
-        isApproved = true;
-      } else if (userEmail) {
-        try {
-          const docRef = doc(db, 'approved_users', userEmail);
-          const docSnap = await getDoc(docRef);
-          isApproved = docSnap.exists();
-        } catch (e) {
-          console.error("Failed to check approval status on setUser", e);
-        }
+        set({ user, isInitialAuthReady: true, authStatus: 'success' });
+        return;
       }
 
-      if (!isApproved) {
-          signOut(auth);
-          set({ error: 'unauthorized', user: null, authStatus: 'error', isInitialAuthReady: true });
-          return;
+      let accountStatus = 'unrequested';
+      if (userEmail) {
+        const res = await checkAccountStatus(userEmail);
+        accountStatus = res.status;
+      }
+
+      if (accountStatus !== 'approved') {
+        const payload = {
+          email: user.email || '',
+          displayName: user.displayName || 'Unknown User',
+          timestamp: Date.now()
+        };
+        await signOut(auth);
+        set({ 
+          error: accountStatus === 'unrequested' ? 'unauthorized' : accountStatus, 
+          user: null, 
+          authStatus: 'error', 
+          isInitialAuthReady: true,
+          requestPayload: payload
+        });
+        return;
       }
     }
     set({ user, isInitialAuthReady: true, authStatus: user ? 'success' : 'idle' });
@@ -193,9 +225,7 @@ export const useAuthStore = create<AuthState>()(
       name: 'myfit-auth-storage',
       storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({
-        requestPayload: state.requestPayload,
-        error: state.error === 'unauthorized' ? 'unauthorized' : null,
-        authStatus: state.error === 'unauthorized' ? 'error' : 'idle',
+        requestPayload: state.requestPayload
       }),
     }
   )
