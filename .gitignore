@@ -69,3 +69,6 @@ firestore-debug.log
 firebase-debug.log
 .firebase/
 emulator-data/
+
+playwright-report/
+test-results/

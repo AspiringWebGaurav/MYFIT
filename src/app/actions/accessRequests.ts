@@ -40,31 +40,44 @@ export async function submitAccessRequest(payload: { email: string; displayName:
       }
     }
 
-    // Check if the user is already approved (in case they haven't re-logged in)
-    const approvedRef = adminDb.collection('approved_users').doc(payload.email.toLowerCase());
+    const lowerEmail = payload.email.toLowerCase();
+    
+    // Check unified requests structure first
+    const requestsRef = adminDb.collection('access_requests');
+    const docRef = requestsRef.doc(lowerEmail);
+    const existingDoc = await docRef.get();
+
+    if (existingDoc.exists) {
+      const data = existingDoc.data()!;
+      if (data.status === 'pending') {
+        return { success: false, error: "Request already submitted" };
+      }
+      if (data.status === 'approved') {
+        return { success: false, error: "Account already approved. Try logging in again." };
+      }
+      // If rejected or revoked, allow re-requesting by updating the document
+      await docRef.update({
+        status: 'pending',
+        displayName: payload.displayName,
+        timestamp: payload.timestamp || FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      });
+      return { success: true, message: "Request Submitted" };
+    }
+
+    // Check legacy approved_users fallback
+    const approvedRef = adminDb.collection('approved_users').doc(lowerEmail);
     const approvedDoc = await approvedRef.get();
     if (approvedDoc.exists) {
        return { success: false, error: "Account already approved. Try logging in again." };
     }
 
-    // Check for duplicate pending requests
-    const requestsRef = adminDb.collection('access_requests');
-    const existingQuery = await requestsRef
-      .where('email', '==', payload.email)
-      .where('status', '==', 'pending')
-      .limit(1)
-      .get();
-
-    if (!existingQuery.empty) {
-      return { success: false, error: "Request already submitted" };
-    }
-
     // Create the new request
-    await requestsRef.add({
+    await docRef.set({
       email: payload.email,
       displayName: payload.displayName,
       timestamp: payload.timestamp || FieldValue.serverTimestamp(),
-      status: 'pending' // 'pending' | 'approved' | 'rejected'
+      status: 'pending' // 'pending' | 'approved' | 'rejected' | 'revoked'
     });
 
     return { success: true, message: "Request Submitted" };
@@ -77,22 +90,42 @@ export async function submitAccessRequest(payload: { email: string; displayName:
 
 export type AccountStatusResult = 
   | { status: 'approved' }
-  | { status: 'pending' | 'rejected' | 'unrequested' };
+  | { status: 'pending' | 'rejected' | 'revoked' | 'unrequested' };
 
 export async function checkAccountStatus(email: string): Promise<AccountStatusResult> {
   if (!email) return { status: 'unrequested' };
   const lowerEmail = email.toLowerCase();
   
   try {
-    // 1. Check if approved
-    const approvedRef = adminDb.collection('approved_users').doc(lowerEmail);
-    const approvedDoc = await approvedRef.get();
-    if (approvedDoc.exists) {
-      return { status: 'approved' };
+    const requestsRef = adminDb.collection('access_requests');
+    const docRef = requestsRef.doc(lowerEmail);
+    const existingDoc = await docRef.get();
+    
+    if (existingDoc.exists) {
+      const status = existingDoc.data()?.status;
+      if (status === 'approved') return { status: 'approved' };
+      if (status === 'pending') return { status: 'pending' };
+      if (status === 'rejected') return { status: 'rejected' };
+      if (status === 'revoked') return { status: 'revoked' };
+    } else {
+      // Auto-migrate from legacy approved_users if missing
+      const approvedRef = adminDb.collection('approved_users').doc(lowerEmail);
+      const approvedDoc = await approvedRef.get();
+      
+      if (approvedDoc.exists) {
+        // Migrate to new structure
+        await docRef.set({
+          email: lowerEmail,
+          displayName: 'Migrated User', // Fallback, auth handles real name
+          timestamp: approvedDoc.data()?.approvedAt || FieldValue.serverTimestamp(),
+          status: 'approved',
+          approvedAt: approvedDoc.data()?.approvedAt || FieldValue.serverTimestamp()
+        });
+        return { status: 'approved' };
+      }
     }
     
-    // 2. Check latest access request
-    const requestsRef = adminDb.collection('access_requests');
+    // Legacy support: Check for old random-ID requests just in case
     const existingQuery = await requestsRef
       .where('email', '==', lowerEmail)
       .orderBy('timestamp', 'desc')
@@ -103,6 +136,7 @@ export async function checkAccountStatus(email: string): Promise<AccountStatusRe
       const latestRequest = existingQuery.docs[0].data();
       if (latestRequest.status === 'pending') return { status: 'pending' };
       if (latestRequest.status === 'rejected') return { status: 'rejected' };
+      if (latestRequest.status === 'revoked') return { status: 'revoked' };
     }
     
     return { status: 'unrequested' };

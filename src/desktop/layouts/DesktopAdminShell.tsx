@@ -7,31 +7,40 @@ import { adminLogout } from '@/app/actions/adminAuth';
 import { OceanicBackground } from '@/shared/components/OceanicBackground';
 import { Logo } from '@/shared/components/Logo';
 import { LiveDateTimeBar } from '@/shared/components/LiveDateTimeBar';
-import { AdminRequestsPanel } from '../panels/AdminRequestsPanel';
+import { AdminRequestsPanel } from '@/shared/admin/panels/AdminRequestsPanel';
+import { AdminHistoryPanel } from '@/shared/admin/panels/AdminHistoryPanel';
 import { useRouter } from 'next/navigation';
+import { History } from 'lucide-react';
 
-type AdminPanelType = 'dashboard' | 'requests';
+type AdminPanelType = 'dashboard' | 'requests' | 'history';
 
-export function AdminShell() {
-  const [activePanel, setActivePanel] = useState<AdminPanelType>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = sessionStorage.getItem('admin_active_panel');
-      if (saved === 'dashboard' || saved === 'requests') {
-        return saved;
-      }
+export function DesktopAdminShell() {
+  const [activePanel, setActivePanel] = useState<AdminPanelType>('requests');
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    const saved = sessionStorage.getItem('admin_active_panel');
+    if (saved === 'dashboard' || saved === 'requests' || saved === 'history') {
+      setActivePanel(saved as AdminPanelType);
     }
-    return 'requests'; // Default to requests for now
-  });
+  }, []);
+
+  useEffect(() => {
+    if (isMounted) {
+      sessionStorage.setItem('admin_active_panel', activePanel);
+    }
+  }, [activePanel, isMounted]);
 
   const router = useRouter();
 
-  useEffect(() => {
-    sessionStorage.setItem('admin_active_panel', activePanel);
-  }, [activePanel]);
+  // Prevent rendering panels until mounted to match SSR
+  if (!isMounted) return null;
 
   const navItems = [
     { id: 'dashboard', label: 'Admin Dashboard', icon: LayoutDashboard },
-    { id: 'requests', label: 'Access Requests', icon: Users },
+    { id: 'requests', label: 'Pending Requests', icon: Users },
+    { id: 'history', label: 'Request History', icon: History },
   ] as const;
 
   const handleLogout = async () => {
@@ -112,6 +121,7 @@ export function AdminShell() {
               className="h-full max-w-5xl mx-auto"
             >
               {activePanel === 'requests' && <AdminRequestsPanel />}
+              {activePanel === 'history' && <AdminHistoryPanel />}
               {activePanel === 'dashboard' && (
                 <div className="flex flex-col items-center justify-center h-64 text-zinc-500 mt-20">
                   <LayoutDashboard className="w-12 h-12 mb-4 opacity-50" />

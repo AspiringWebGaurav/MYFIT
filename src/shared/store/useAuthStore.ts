@@ -2,13 +2,44 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { User, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, googleProvider, db } from '../firebase/config';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { checkAccountStatus } from '@/app/actions/accessRequests';
 
 // 1. Non-Reactive Module-Level Locks & Refs
 let popupSessionActive = false;
 let authAttemptId = 0;
 let focusTimeout: NodeJS.Timeout | null = null;
+let unsubscribeAccessListener: Unsubscribe | null = null;
+
+function setupLiveAccessSync(email: string) {
+  if (unsubscribeAccessListener) {
+    unsubscribeAccessListener();
+    unsubscribeAccessListener = null;
+  }
+  if (!email || email.toLowerCase() === 'gauravpatil9262@gmail.com') return;
+
+  const docRef = doc(db, 'access_requests', email.toLowerCase());
+  unsubscribeAccessListener = onSnapshot(docRef, (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      if (data.status === 'revoked' || data.status === 'rejected') {
+        const store = useAuthStore.getState();
+        if (store.user) {
+          signOut(auth).then(() => {
+            useAuthStore.setState({ 
+              user: null, 
+              authStatus: 'error', 
+              error: data.status, // 'revoked' or 'rejected'
+              requestPayload: { email, displayName: data.displayName || 'Unknown User', timestamp: Date.now() } 
+            });
+          });
+        }
+      }
+    }
+  }, (error) => {
+    console.error("Live sync error:", error);
+  });
+}
 
 // 2. Preload Google Provider settings for perceived performance
 googleProvider.setCustomParameters({
@@ -44,19 +75,30 @@ export const useAuthStore = create<AuthState>()(
   requestPayload: null,
 
   login: async () => {
-    // FORCE CLEANUP of any pending focus timeouts when a new login starts
-    if (focusTimeout) {
-      clearTimeout(focusTimeout);
-      focusTimeout = null;
-    }
-
-    // Strict Concurrency Lock
-    if (popupSessionActive || get().authStatus === 'loading') {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Auth blocked: Popup session already active.');
+    // E2E Test Hook
+    if (typeof window !== 'undefined' && (window as any).__E2E_MOCK_USER__) {
+      set({ authStatus: 'loading', error: null });
+      const user = (window as any).__E2E_MOCK_USER__;
+      const status = (window as any).__E2E_MOCK_STATUS__;
+      
+      await new Promise(r => setTimeout(r, 500)); // simulate network
+      
+      if (status === 'approved') {
+        setupLiveAccessSync(user.email);
+        set({ user, authStatus: 'approved', error: null });
+        return;
       }
+      
+      set({ 
+        authStatus: 'error', 
+        error: status === 'unrequested' ? 'unauthorized' : status, 
+        user: null, 
+        requestPayload: { email: user.email, displayName: user.displayName, timestamp: Date.now() } 
+      });
       return;
     }
+
+    // FORCE CLEANUP of any pending focus timeouts when a new login starts
 
     // Track the current attempt to prevent stale promises from updating state
     const currentAttempt = ++authAttemptId;
@@ -124,6 +166,7 @@ export const useAuthStore = create<AuthState>()(
         
         // Wait, if we set `user: result.user`, Zustand updates `AppShell`, which switches to `DesktopShell`.
         // `DesktopLogin` will play its `exit` animation (1s fade out).
+        setupLiveAccessSync(userEmail);
         set({ user: result.user, authStatus: 'approved', error: null });
         return;
       }
@@ -166,11 +209,30 @@ export const useAuthStore = create<AuthState>()(
   },
 
   logout: async () => {
+    // E2E Test Hook
+    if (typeof window !== 'undefined' && (window as any).__E2E_MOCK_USER__) {
+      set({ user: null, authStatus: 'idle', error: null });
+      return;
+    }
+
+    if (unsubscribeAccessListener) {
+      unsubscribeAccessListener();
+      unsubscribeAccessListener = null;
+    }
     await signOut(auth);
     set({ user: null, authStatus: 'idle', error: null });
   },
 
   setUser: async (user) => {
+    // E2E Test Hook
+    if (typeof window !== 'undefined' && (window as any).__E2E_MOCK_USER__) {
+      return;
+    }
+    
+    if (!user && unsubscribeAccessListener) {
+      unsubscribeAccessListener();
+      unsubscribeAccessListener = null;
+    }
     if (user) {
       const userEmail = user.email?.toLowerCase();
       
@@ -201,8 +263,14 @@ export const useAuthStore = create<AuthState>()(
         });
         return;
       }
+      
+      setupLiveAccessSync(userEmail || '');
     }
-    set({ user, isInitialAuthReady: true, authStatus: user ? 'success' : 'idle' });
+    set((state) => ({ 
+      user, 
+      isInitialAuthReady: true, 
+      authStatus: user ? 'success' : (state.authStatus === 'error' ? 'error' : 'idle') 
+    }));
   },
 
   setAuthStatus: (status) => set({ authStatus: status }),
@@ -213,6 +281,10 @@ export const useAuthStore = create<AuthState>()(
     if (get().authStatus === 'loading' || popupSessionActive) {
       if (process.env.NODE_ENV === 'development') {
         console.log(`Safely resetting stuck auth state. Reason: ${reason}`);
+      }
+      if (unsubscribeAccessListener) {
+        unsubscribeAccessListener();
+        unsubscribeAccessListener = null;
       }
       // Increment attempt ID to invalidate any pending promises from resolving
       authAttemptId++; 
@@ -225,7 +297,9 @@ export const useAuthStore = create<AuthState>()(
       name: 'myfit-auth-storage',
       storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({
-        requestPayload: state.requestPayload
+        requestPayload: state.requestPayload,
+        authStatus: state.authStatus === 'error' ? 'error' : 'idle',
+        error: state.error,
       }),
     }
   )

@@ -39,45 +39,16 @@ export function MobileDiet() {
 }
 
 // The Attendance Panel - Core emotional loop
+import { useAttendanceFlow } from '@/shared/hooks/useAttendanceFlow';
+
 export function MobileAttendance() {
-  const user = useAuthStore(state => state.user);
-  const isAttendedToday = useAttendanceStore(state => state.isAttendedToday);
-  const checkAttendanceStatus = useAttendanceStore(state => state.checkAttendanceStatus);
-  const markAttendance = useAttendanceStore(state => state.markAttendance);
-  const incrementStreak = useAppStore(state => state.incrementStreak);
-  
-  const [showPulse, setShowPulse] = useState(false);
-  const [interactionState, setInteractionState] = useState<'idle' | 'registering' | 'complete'>('idle');
-
-  useEffect(() => {
-    if (user) {
-      checkAttendanceStatus(user.uid);
-    }
-  }, [user, checkAttendanceStatus]);
-
-  const handleMarkAttendance = async () => {
-    if (user && !isAttendedToday && interactionState === 'idle') {
-      setInteractionState('registering');
-      
-      // Trigger actual network request
-      const networkPromise = markAttendance(user.uid);
-      
-      // Ensure the registering phase lasts at least 1200ms for cinematic sync feeling
-      const cinematicDelay = new Promise(resolve => setTimeout(resolve, 1200));
-      
-      await Promise.all([networkPromise, cinematicDelay]);
-      
-      incrementStreak(); // Track for PWA logic
-      
-      // Trigger the emotional world reaction
-      setInteractionState('complete');
-      setShowPulse(true);
-      setTimeout(() => setShowPulse(false), 2000);
-    }
-  };
-
-  const isLockedIn = isAttendedToday || interactionState === 'complete';
-  const isRegistering = interactionState === 'registering';
+  const {
+    handleMarkAttendance,
+    showPulse,
+    isLockedIn,
+    isRegistering,
+    interactionState
+  } = useAttendanceFlow();
 
   return (
     <div className="flex flex-col h-full flex-1 px-6 pt-32 pb-8 items-center text-center relative justify-between overflow-hidden">

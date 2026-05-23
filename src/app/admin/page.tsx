@@ -1,6 +1,6 @@
 import { checkAdminStatus } from "@/app/actions/adminAuth";
-import { AdminLoginClient } from "@/desktop/panels/AdminLoginClient";
-import { AdminShell } from "@/desktop/layouts/AdminShell";
+import { AdminLoginClient } from "@/shared/admin/panels/AdminLoginClient";
+import { AdminAppShell } from "./AdminAppShell";
 
 export const dynamic = 'force-dynamic';
 
@@ -11,5 +11,5 @@ export default async function AdminPage() {
     return <AdminLoginClient />;
   }
 
-  return <AdminShell />;
+  return <AdminAppShell />;
 }

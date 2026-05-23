@@ -8,6 +8,8 @@ import { LiveDateTimeBar } from '@/shared/components/LiveDateTimeBar';
 import { Logo } from '@/shared/components/Logo';
 import { Dumbbell, Target, TrendingUp, Zap, X } from 'lucide-react';
 
+import { useLoginFlow } from '@/shared/hooks/useLoginFlow';
+
 const words = ["Track.", "Build.", "Transform.", "Stay Consistent."];
 
 const GoogleIcon = () => (
@@ -20,20 +22,22 @@ const GoogleIcon = () => (
 );
 
 export function MobileLogin() {
-  const login = useAuthStore(state => state.login);
-  const error = useAuthStore(state => state.error);
-  const logout = useAuthStore(state => state.logout);
-  const clearError = useAuthStore(state => state.clearError);
-  const authStatus = useAuthStore(state => state.authStatus);
-  const requestPayload = useAuthStore(state => state.requestPayload);
-  const clearRequestPayload = useAuthStore(state => state.clearRequestPayload);
+  const {
+    login,
+    error,
+    authStatus,
+    clearError,
+    clearRequestPayload,
+    isRequesting,
+    requestStatus,
+    statusMessage,
+    handleSwitchAccount,
+    handleRequestAccess,
+    isAuthLoading
+  } = useLoginFlow();
   
   const [mounted, setMounted] = useState(false);
   const [wordIndex, setWordIndex] = useState(0);
-  const [isRequesting, setIsRequesting] = useState(false);
-  const [requestStatus, setRequestStatus] = useState<'idle' | 'success' | 'duplicate'>('idle');
-  const [statusMessage, setStatusMessage] = useState("");
-
 
   const pointerX = useMotionValue(0);
   const pointerY = useMotionValue(0);
@@ -82,38 +86,6 @@ export function MobileLogin() {
     pointerY.set(0);
   };
 
-  const handleSwitchAccount = async () => {
-    await logout();
-    clearRequestPayload();
-    // Using a brief timeout to let React clean up state before reopening the popup
-    setTimeout(() => {
-      login();
-    }, 250);
-  };
-
-  const handleRequestAccess = async () => {
-    if (!requestPayload) return;
-    setIsRequesting(true);
-    const result = await submitAccessRequest(requestPayload);
-    setIsRequesting(false);
-    
-    if (result.success) {
-      setRequestStatus('success');
-      setStatusMessage("✓ Request Submitted");
-    } else if (result.error.includes("already submitted") || result.rateLimited) {
-      setRequestStatus('duplicate');
-      setStatusMessage(result.error);
-    }
-    
-    setTimeout(() => {
-      setRequestStatus('idle');
-      if (result.success) {
-         clearRequestPayload();
-         clearError();
-      }
-    }, 4000);
-  };
-
 
   // Apple-level premium easing curve
   const cinematicEase: [number, number, number, number] = [0.16, 1, 0.3, 1];
@@ -134,8 +106,6 @@ export function MobileLogin() {
       transition: { duration: 1.2, ease: cinematicEase }
     }
   };
-
-  const isAuthLoading = authStatus === 'loading' || authStatus === 'success';
 
   return (
     <div 
@@ -354,7 +324,7 @@ export function MobileLogin() {
 
       {/* Status Bottom Sheet Popup */}
       <AnimatePresence mode="wait">
-        {(error === 'unauthorized' || error === 'pending' || error === 'rejected' || authStatus === 'approved') && (
+        {(error === 'unauthorized' || error === 'pending' || error === 'rejected' || error === 'revoked' || authStatus === 'approved') && (
           <motion.div 
             key={error || authStatus}
             initial={{ opacity: 0 }}
@@ -371,7 +341,7 @@ export function MobileLogin() {
               exit={{ y: '100%', scale: 0.95 }}
               transition={{ duration: 0.5, ease: cinematicEase }}
               onClick={(e) => e.stopPropagation()}
-              className={`relative w-full bg-[#041222]/95 border ${authStatus === 'approved' ? 'border-teal-500/30' : error === 'rejected' ? 'border-red-500/30' : error === 'pending' ? 'border-amber-500/30' : 'border-cyan-500/30'} p-6 rounded-[2rem] shadow-[0_-8px_40px_rgba(0,0,0,0.5)] overflow-hidden cursor-default transition-colors duration-500`}
+              className={`relative w-full bg-[#041222]/95 border ${authStatus === 'approved' ? 'border-teal-500/30' : error === 'rejected' || error === 'revoked' ? 'border-red-500/30' : error === 'pending' ? 'border-amber-500/30' : 'border-cyan-500/30'} p-6 rounded-[2rem] shadow-[0_-8px_40px_rgba(0,0,0,0.5)] overflow-hidden cursor-default transition-colors duration-500`}
             >
               {authStatus !== 'approved' && (
                 <button
@@ -384,23 +354,23 @@ export function MobileLogin() {
               )}
 
               {/* Subtle Top Cinematic Edge Glow */}
-              <div className={`absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent ${authStatus === 'approved' ? 'via-teal-400/50' : error === 'rejected' ? 'via-red-400/50' : error === 'pending' ? 'via-amber-400/50' : 'via-cyan-400/50'} to-transparent opacity-80`} />
+              <div className={`absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent ${authStatus === 'approved' ? 'via-teal-400/50' : error === 'rejected' || error === 'revoked' ? 'via-red-400/50' : error === 'pending' ? 'via-amber-400/50' : 'via-cyan-400/50'} to-transparent opacity-80`} />
               
               {/* Internal ambient glow */}
-              <div className={`absolute inset-0 bg-gradient-to-t ${authStatus === 'approved' ? 'from-teal-500/10 to-emerald-500/5' : error === 'rejected' ? 'from-red-500/10 to-rose-500/5' : error === 'pending' ? 'from-amber-500/10 to-orange-500/5' : 'from-cyan-500/10 to-teal-500/5'} rounded-[2rem] blur-xl z-0 pointer-events-none transition-colors duration-500`} />
+              <div className={`absolute inset-0 bg-gradient-to-t ${authStatus === 'approved' ? 'from-teal-500/10 to-emerald-500/5' : error === 'rejected' || error === 'revoked' ? 'from-red-500/10 to-rose-500/5' : error === 'pending' ? 'from-amber-500/10 to-orange-500/5' : 'from-cyan-500/10 to-teal-500/5'} rounded-[2rem] blur-xl z-0 pointer-events-none transition-colors duration-500`} />
 
               <div className="relative z-10 flex flex-col items-center text-center">
                 {/* Animated Mobile Icon */}
                 <motion.div 
                   animate={{ 
-                    boxShadow: authStatus === 'approved' ? ["0 0 0px rgba(20,184,166,0)", "0 0 20px rgba(20,184,166,0.3)", "0 0 0px rgba(20,184,166,0)"] : error === 'rejected' ? ["0 0 0px rgba(239,68,68,0)", "0 0 20px rgba(239,68,68,0.3)", "0 0 0px rgba(239,68,68,0)"] : error === 'pending' ? ["0 0 0px rgba(245,158,11,0)", "0 0 20px rgba(245,158,11,0.3)", "0 0 0px rgba(245,158,11,0)"] : ["0 0 0px rgba(34,211,238,0)", "0 0 20px rgba(34,211,238,0.3)", "0 0 0px rgba(34,211,238,0)"] 
+                    boxShadow: authStatus === 'approved' ? ["0 0 0px rgba(20,184,166,0)", "0 0 20px rgba(20,184,166,0.3)", "0 0 0px rgba(20,184,166,0)"] : error === 'rejected' || error === 'revoked' ? ["0 0 0px rgba(239,68,68,0)", "0 0 20px rgba(239,68,68,0.3)", "0 0 0px rgba(239,68,68,0)"] : error === 'pending' ? ["0 0 0px rgba(245,158,11,0)", "0 0 20px rgba(245,158,11,0.3)", "0 0 0px rgba(245,158,11,0)"] : ["0 0 0px rgba(34,211,238,0)", "0 0 20px rgba(34,211,238,0.3)", "0 0 0px rgba(34,211,238,0)"] 
                   }}
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                  className={`w-14 h-14 rounded-full ${authStatus === 'approved' ? 'bg-teal-950/50 border-teal-400/40' : error === 'rejected' ? 'bg-red-950/50 border-red-400/40' : error === 'pending' ? 'bg-amber-950/50 border-amber-400/40' : 'bg-cyan-950/50 border-cyan-400/40'} border flex items-center justify-center mb-4 shrink-0 transition-colors duration-500`}
+                  className={`w-14 h-14 rounded-full ${authStatus === 'approved' ? 'bg-teal-950/50 border-teal-400/40' : error === 'rejected' || error === 'revoked' ? 'bg-red-950/50 border-red-400/40' : error === 'pending' ? 'bg-amber-950/50 border-amber-400/40' : 'bg-cyan-950/50 border-cyan-400/40'} border flex items-center justify-center mb-4 shrink-0 transition-colors duration-500`}
                 >
                   {authStatus === 'approved' ? (
                     <span className="text-teal-300 text-[22px]">✓</span>
-                  ) : error === 'rejected' ? (
+                  ) : error === 'rejected' || error === 'revoked' ? (
                     <span className="text-red-300 text-[22px]">✕</span>
                   ) : error === 'pending' ? (
                     <span className="text-amber-300 text-[22px]">⏳</span>
@@ -414,6 +384,8 @@ export function MobileLogin() {
                     <>Access Granted 👋<br/>Your account has been approved.</>
                   ) : error === 'rejected' ? (
                     <>Access Unavailable<br/>This account request was not approved.</>
+                  ) : error === 'revoked' ? (
+                    <>Access Revoked<br/>Your account access was changed by administrator.</>
                   ) : error === 'pending' ? (
                     <>Request Under Review<br/>Your request is still being reviewed.</>
                   ) : (
@@ -421,7 +393,7 @@ export function MobileLogin() {
                   )}
                 </h3>
                 
-                <p className={`text-[14px] font-light leading-relaxed mb-4 ${authStatus === 'approved' ? 'text-teal-50/70' : error === 'rejected' ? 'text-red-50/70' : error === 'pending' ? 'text-amber-50/70' : 'text-cyan-50/70'}`}>
+                <p className={`text-[14px] font-light leading-relaxed mb-4 ${authStatus === 'approved' ? 'text-teal-50/70' : error === 'rejected' || error === 'revoked' ? 'text-red-50/70' : error === 'pending' ? 'text-amber-50/70' : 'text-cyan-50/70'}`}>
                   {authStatus === 'approved' ? (
                     <span className="flex items-center justify-center gap-2">
                       <motion.span
@@ -433,6 +405,8 @@ export function MobileLogin() {
                     </span>
                   ) : error === 'rejected' ? (
                     'Try another account or request access later.'
+                  ) : error === 'revoked' ? (
+                    'Request access again or contact administrator.'
                   ) : error === 'pending' ? (
                     'We will notify you once an admin has reviewed your request.'
                   ) : (
@@ -477,7 +451,7 @@ export function MobileLogin() {
                         </motion.button>
                       )}
                       
-                      {error === 'rejected' && (
+                      {(error === 'rejected' || error === 'revoked') && (
                         <motion.button
                           onClick={handleRequestAccess}
                           disabled={isRequesting}
@@ -520,7 +494,7 @@ export function MobileLogin() {
                       <motion.button 
                         whileTap={{ scale: 0.96 }}
                         onClick={handleSwitchAccount}
-                        className={`text-[14px] ${error === 'rejected' ? 'text-red-400 active:text-red-300' : error === 'pending' ? 'text-amber-400 active:text-amber-300' : 'text-cyan-400 active:text-cyan-300'} font-medium py-2 transition-colors`}
+                        className={`text-[14px] ${error === 'rejected' || error === 'revoked' ? 'text-red-400 active:text-red-300' : error === 'pending' ? 'text-amber-400 active:text-amber-300' : 'text-cyan-400 active:text-cyan-300'} font-medium py-2 transition-colors`}
                       >
                         Try another account
                       </motion.button>

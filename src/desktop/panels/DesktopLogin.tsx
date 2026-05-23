@@ -7,6 +7,8 @@ import { OceanicBackground } from '@/shared/components/OceanicBackground';
 import { LiveDateTimeBar } from '@/shared/components/LiveDateTimeBar';
 import { Logo } from '@/shared/components/Logo';
 
+import { useLoginFlow } from '@/shared/hooks/useLoginFlow';
+
 const words = ["Train.", "Build.", "Transform.", "Stay Consistent.", "Keep Moving."];
 
 const GoogleIcon = () => (
@@ -19,20 +21,22 @@ const GoogleIcon = () => (
 );
 
 export function DesktopLogin() {
-  const login = useAuthStore(state => state.login);
-  const error = useAuthStore(state => state.error);
-  const logout = useAuthStore(state => state.logout);
-  const clearError = useAuthStore(state => state.clearError);
-  const authStatus = useAuthStore(state => state.authStatus);
-  const requestPayload = useAuthStore(state => state.requestPayload);
-  const clearRequestPayload = useAuthStore(state => state.clearRequestPayload);
+  const {
+    login,
+    error,
+    authStatus,
+    clearError,
+    clearRequestPayload,
+    isRequesting,
+    requestStatus,
+    statusMessage,
+    handleSwitchAccount,
+    handleRequestAccess,
+    isAuthLoading
+  } = useLoginFlow();
   
   const [currentWord, setCurrentWord] = useState(0);
-  const [isRequesting, setIsRequesting] = useState(false);
-  const [requestStatus, setRequestStatus] = useState<'idle' | 'success' | 'duplicate'>('idle');
-  const [statusMessage, setStatusMessage] = useState("");
 
-  
   // High-performance cursor tracking
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -52,12 +56,10 @@ export function DesktopLogin() {
   const authParallaxY = useTransform(normY, (v) => v * 1.5);
 
   useEffect(() => {
-    
     if (typeof window !== 'undefined') {
       mouseX.set(window.innerWidth / 2);
       mouseY.set(window.innerHeight / 2);
     }
-    
     const interval = setInterval(() => {
       setCurrentWord((prev) => (prev + 1) % words.length);
     }, 3500);
@@ -68,41 +70,6 @@ export function DesktopLogin() {
     mouseX.set(e.clientX);
     mouseY.set(e.clientY);
   };
-
-  const handleSwitchAccount = async () => {
-    await logout();
-    clearError();
-    clearRequestPayload();
-    setTimeout(() => {
-      login();
-    }, 250);
-  };
-
-  const handleRequestAccess = async () => {
-    if (!requestPayload) return;
-    setIsRequesting(true);
-    const result = await submitAccessRequest(requestPayload);
-    setIsRequesting(false);
-    
-    if (result.success) {
-      setRequestStatus('success');
-      setStatusMessage("✓ Request Submitted");
-    } else if (result.error.includes("already submitted") || result.rateLimited) {
-      setRequestStatus('duplicate');
-      setStatusMessage(result.error);
-    }
-    
-    setTimeout(() => {
-      setRequestStatus('idle');
-      if (result.success) {
-         clearRequestPayload();
-         clearError();
-      }
-    }, 4000);
-  };
-
-
-  const isAuthLoading = authStatus === 'loading' || authStatus === 'success';
 
   return (
     <div 
@@ -191,7 +158,7 @@ export function DesktopLogin() {
             </div>
 
             <AnimatePresence mode="wait">
-              {(error === 'unauthorized' || error === 'pending' || error === 'rejected' || authStatus === 'approved') && (
+              {(error === 'unauthorized' || error === 'pending' || error === 'rejected' || error === 'revoked' || authStatus === 'approved') && (
                 <motion.div 
                   key={error || authStatus}
                   initial={{ opacity: 0, y: 20 }}
@@ -201,25 +168,25 @@ export function DesktopLogin() {
                   className="w-full mb-8 flex flex-col gap-5 relative"
                 >
                   {/* Premium ambient glow for state */}
-                  <div className={`absolute inset-0 bg-gradient-to-br ${authStatus === 'approved' ? 'from-teal-500/10 to-emerald-500/5' : error === 'rejected' ? 'from-red-500/5 to-rose-500/5' : error === 'pending' ? 'from-amber-500/5 to-orange-500/5' : 'from-cyan-500/5 to-purple-500/5'} rounded-3xl blur-xl transition-colors duration-500`} />
+                  <div className={`absolute inset-0 bg-gradient-to-br ${authStatus === 'approved' ? 'from-teal-500/10 to-emerald-500/5' : error === 'rejected' || error === 'revoked' ? 'from-red-500/5 to-rose-500/5' : error === 'pending' ? 'from-amber-500/5 to-orange-500/5' : 'from-cyan-500/5 to-purple-500/5'} rounded-3xl blur-xl transition-colors duration-500`} />
                   
                   {/* Message Block */}
-                  <div className={`relative w-full bg-[#041222]/80 border ${authStatus === 'approved' ? 'border-teal-500/30 shadow-[0_8px_32px_rgba(20,184,166,0.15)]' : error === 'rejected' ? 'border-red-500/20 shadow-[0_8px_32px_rgba(239,68,68,0.1)]' : error === 'pending' ? 'border-amber-500/20 shadow-[0_8px_32px_rgba(245,158,11,0.1)]' : 'border-cyan-500/20 shadow-[0_8px_32px_rgba(6,182,212,0.1)]'} p-6 rounded-3xl backdrop-blur-xl overflow-hidden group transition-all duration-500`}>
-                    <div className={`absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent ${authStatus === 'approved' ? 'via-teal-400/40' : error === 'rejected' ? 'via-red-400/40' : error === 'pending' ? 'via-amber-400/40' : 'via-cyan-400/40'} to-transparent opacity-50`} />
-                    <div className={`absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent ${authStatus === 'approved' ? 'via-emerald-400/20' : error === 'rejected' ? 'via-rose-400/20' : error === 'pending' ? 'via-orange-400/20' : 'via-teal-400/20'} to-transparent opacity-50`} />
+                  <div className={`relative w-full bg-[#041222]/80 border ${authStatus === 'approved' ? 'border-teal-500/30 shadow-[0_8px_32px_rgba(20,184,166,0.15)]' : error === 'rejected' || error === 'revoked' ? 'border-red-500/20 shadow-[0_8px_32px_rgba(239,68,68,0.1)]' : error === 'pending' ? 'border-amber-500/20 shadow-[0_8px_32px_rgba(245,158,11,0.1)]' : 'border-cyan-500/20 shadow-[0_8px_32px_rgba(6,182,212,0.1)]'} p-6 rounded-3xl backdrop-blur-xl overflow-hidden group transition-all duration-500`}>
+                    <div className={`absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent ${authStatus === 'approved' ? 'via-teal-400/40' : error === 'rejected' || error === 'revoked' ? 'via-red-400/40' : error === 'pending' ? 'via-amber-400/40' : 'via-cyan-400/40'} to-transparent opacity-50`} />
+                    <div className={`absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent ${authStatus === 'approved' ? 'via-emerald-400/20' : error === 'rejected' || error === 'revoked' ? 'via-rose-400/20' : error === 'pending' ? 'via-orange-400/20' : 'via-teal-400/20'} to-transparent opacity-50`} />
                     
                     <div className="flex items-start gap-4">
                       {/* Soft Animated Icon */}
                       <motion.div 
                         animate={{ 
-                          boxShadow: authStatus === 'approved' ? ["0 0 0px rgba(20,184,166,0)", "0 0 15px rgba(20,184,166,0.3)", "0 0 0px rgba(20,184,166,0)"] : error === 'rejected' ? ["0 0 0px rgba(239,68,68,0)", "0 0 15px rgba(239,68,68,0.2)", "0 0 0px rgba(239,68,68,0)"] : error === 'pending' ? ["0 0 0px rgba(245,158,11,0)", "0 0 15px rgba(245,158,11,0.2)", "0 0 0px rgba(245,158,11,0)"] : ["0 0 0px rgba(45,212,191,0)", "0 0 15px rgba(45,212,191,0.2)", "0 0 0px rgba(45,212,191,0)"] 
+                          boxShadow: authStatus === 'approved' ? ["0 0 0px rgba(20,184,166,0)", "0 0 15px rgba(20,184,166,0.3)", "0 0 0px rgba(20,184,166,0)"] : error === 'rejected' || error === 'revoked' ? ["0 0 0px rgba(239,68,68,0)", "0 0 15px rgba(239,68,68,0.2)", "0 0 0px rgba(239,68,68,0)"] : error === 'pending' ? ["0 0 0px rgba(245,158,11,0)", "0 0 15px rgba(245,158,11,0.2)", "0 0 0px rgba(245,158,11,0)"] : ["0 0 0px rgba(45,212,191,0)", "0 0 15px rgba(45,212,191,0.2)", "0 0 0px rgba(45,212,191,0)"] 
                         }}
                         transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                        className={`flex-shrink-0 w-10 h-10 rounded-full ${authStatus === 'approved' ? 'bg-teal-950/40 border-teal-500/40' : error === 'rejected' ? 'bg-red-950/40 border-red-500/30' : error === 'pending' ? 'bg-amber-950/40 border-amber-500/30' : 'bg-cyan-950/40 border-cyan-500/30'} border flex items-center justify-center mt-1`}
+                        className={`flex-shrink-0 w-10 h-10 rounded-full ${authStatus === 'approved' ? 'bg-teal-950/40 border-teal-500/40' : error === 'rejected' || error === 'revoked' ? 'bg-red-950/40 border-red-500/30' : error === 'pending' ? 'bg-amber-950/40 border-amber-500/30' : 'bg-cyan-950/40 border-cyan-500/30'} border flex items-center justify-center mt-1`}
                       >
                         {authStatus === 'approved' ? (
                           <span className="text-teal-400 text-lg">✓</span>
-                        ) : error === 'rejected' ? (
+                        ) : error === 'rejected' || error === 'revoked' ? (
                           <span className="text-red-400 text-lg">✕</span>
                         ) : error === 'pending' ? (
                           <span className="text-amber-400 text-lg">⏳</span>
@@ -234,13 +201,15 @@ export function DesktopLogin() {
                             <>Access Granted 👋<br/>Your account has been approved.</>
                           ) : error === 'rejected' ? (
                             <>Access Unavailable<br/>This account request was not approved.</>
+                          ) : error === 'revoked' ? (
+                            <>Access Revoked<br/>Your account access was changed by administrator.</>
                           ) : error === 'pending' ? (
                             <>Request Under Review<br/>Your request is still being reviewed.</>
                           ) : (
                             <>Ohoo 👋<br/>Looks like your account doesn&apos;t currently have access to this private MYFIT space.</>
                           )}
                         </p>
-                        <p className={`text-sm font-light leading-relaxed ${authStatus === 'approved' ? 'text-teal-100/70' : error === 'rejected' ? 'text-red-100/60' : error === 'pending' ? 'text-amber-100/60' : 'text-cyan-100/60'}`}>
+                        <p className={`text-sm font-light leading-relaxed ${authStatus === 'approved' ? 'text-teal-100/70' : error === 'rejected' || error === 'revoked' ? 'text-red-100/60' : error === 'pending' ? 'text-amber-100/60' : 'text-cyan-100/60'}`}>
                           {authStatus === 'approved' ? (
                             <span className="flex items-center gap-2">
                               <motion.span
@@ -252,6 +221,8 @@ export function DesktopLogin() {
                             </span>
                           ) : error === 'rejected' ? (
                             'Try another account or request access later.'
+                          ) : error === 'revoked' ? (
+                            'Request access again or contact administrator.'
                           ) : error === 'pending' ? (
                             'We will notify you once an admin has reviewed your request.'
                           ) : (
@@ -300,7 +271,7 @@ export function DesktopLogin() {
                         </motion.button>
                       )}
                       
-                      {error === 'rejected' && (
+                      {(error === 'rejected' || error === 'revoked') && (
                         <motion.button
                           onClick={handleRequestAccess}
                           disabled={isRequesting}
@@ -346,7 +317,7 @@ export function DesktopLogin() {
                         {error === 'unauthorized' && <span className="text-[13px] text-cyan-100/40">Think this is a mistake?</span>}
                         <button 
                           onClick={handleSwitchAccount}
-                          className={`text-[14px] ${error === 'rejected' ? 'text-red-400 hover:text-red-300' : error === 'pending' ? 'text-amber-400 hover:text-amber-300' : 'text-cyan-400 hover:text-cyan-300'} font-medium transition-all duration-300 relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:w-full after:h-[1px] ${error === 'rejected' ? 'after:bg-red-400/30' : error === 'pending' ? 'after:bg-amber-400/30' : 'after:bg-cyan-400/30'} after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300 after:origin-left`}
+                          className={`text-[14px] ${error === 'rejected' || error === 'revoked' ? 'text-red-400 hover:text-red-300' : error === 'pending' ? 'text-amber-400 hover:text-amber-300' : 'text-cyan-400 hover:text-cyan-300'} font-medium transition-all duration-300 relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:w-full after:h-[1px] ${error === 'rejected' || error === 'revoked' ? 'after:bg-red-400/30' : error === 'pending' ? 'after:bg-amber-400/30' : 'after:bg-cyan-400/30'} after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300 after:origin-left`}
                         >
                           Try another Google account
                         </button>

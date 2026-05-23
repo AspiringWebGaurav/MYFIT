@@ -89,41 +89,16 @@ export function DesktopDiet() {
   );
 }
 
+import { useAttendanceFlow } from '@/shared/hooks/useAttendanceFlow';
+
 export function DesktopAttendance() {
-  const user = useAuthStore(state => state.user);
-  const isAttendedToday = useAttendanceStore(state => state.isAttendedToday);
-  const checkAttendanceStatus = useAttendanceStore(state => state.checkAttendanceStatus);
-  const markAttendance = useAttendanceStore(state => state.markAttendance);
-  const incrementStreak = useAppStore(state => state.incrementStreak);
-
-  const [showPulse, setShowPulse] = useState(false);
-  const [interactionState, setInteractionState] = useState<'idle' | 'registering' | 'complete'>('idle');
-
-  useEffect(() => {
-    if (user) {
-      checkAttendanceStatus(user.uid);
-    }
-  }, [user, checkAttendanceStatus]);
-
-  const handleMarkAttendance = async () => {
-    if (user && !isAttendedToday && interactionState === 'idle') {
-      setInteractionState('registering');
-      
-      const networkPromise = markAttendance(user.uid);
-      const cinematicDelay = new Promise(resolve => setTimeout(resolve, 1200));
-      
-      await Promise.all([networkPromise, cinematicDelay]);
-      
-      incrementStreak();
-      
-      setInteractionState('complete');
-      setShowPulse(true);
-      setTimeout(() => setShowPulse(false), 2000);
-    }
-  };
-
-  const isLockedIn = isAttendedToday || interactionState === 'complete';
-  const isRegistering = interactionState === 'registering';
+  const {
+    handleMarkAttendance,
+    showPulse,
+    isLockedIn,
+    isRegistering,
+    interactionState
+  } = useAttendanceFlow();
 
   return (
     <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden relative">
