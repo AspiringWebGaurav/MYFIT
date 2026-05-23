@@ -1,6 +1,7 @@
 "use server";
 
 import { adminDb } from "@/shared/firebase/admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { checkAdminStatus } from "./adminAuth";
 import { revalidatePath } from "next/cache";
 
@@ -43,7 +44,7 @@ export async function approveRequest(id: string, email: string) {
   const approvedRef = adminDb.collection('approved_users').doc(email.toLowerCase());
   batch.set(approvedRef, {
     email: email.toLowerCase(),
-    approvedAt: adminDb.FieldValue.serverTimestamp()
+    approvedAt: FieldValue.serverTimestamp()
   });
 
   // 2. Update request status

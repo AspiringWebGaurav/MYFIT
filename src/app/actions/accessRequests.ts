@@ -1,6 +1,7 @@
 "use server";
 
 import { adminDb } from "@/shared/firebase/admin";
+import { FieldValue } from "firebase-admin/firestore";
 
 export type SubmitAccessRequestResult = 
   | { success: true; message: string }
@@ -62,7 +63,7 @@ export async function submitAccessRequest(payload: { email: string; displayName:
     await requestsRef.add({
       email: payload.email,
       displayName: payload.displayName,
-      timestamp: payload.timestamp || adminDb.FieldValue.serverTimestamp(),
+      timestamp: payload.timestamp || FieldValue.serverTimestamp(),
       status: 'pending' // 'pending' | 'approved' | 'rejected'
     });
 
