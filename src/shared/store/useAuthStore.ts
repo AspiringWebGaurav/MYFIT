@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { User, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, googleProvider, db } from '../firebase/config';
 import { doc, getDoc } from 'firebase/firestore';
@@ -32,7 +33,9 @@ interface AuthState {
   resetAuthSafely: (reason?: string) => void;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set, get) => ({
   user: null,
   authStatus: 'idle',
   error: null,
@@ -185,7 +188,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ authStatus: 'idle', error: null });
     }
   }
-}));
+    }),
+    {
+      name: 'myfit-auth-storage',
+      storage: createJSONStorage(() => sessionStorage),
+      partialize: (state) => ({
+        requestPayload: state.requestPayload,
+        error: state.error === 'unauthorized' ? 'unauthorized' : null,
+        authStatus: state.error === 'unauthorized' ? 'error' : 'idle',
+      }),
+    }
+  )
+);
 
 // Debounced Window Focus Recovery
 if (typeof window !== 'undefined') {
