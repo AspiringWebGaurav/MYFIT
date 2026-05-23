@@ -1,38 +1,68 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/shared/store/useAuthStore";
-import { useDietStore } from "@/shared/store/useDietStore";
+import { useDietStore, useTodayDiet } from "@/shared/store/useDietStore";
 import { useAttendanceStore } from "@/shared/store/useAttendanceStore";
 import { useAppStore } from "@/shared/store/useAppStore";
-import { Check, Loader2, Target, Calendar, Fingerprint } from "lucide-react";
+import { Check, Loader2, Target, Calendar, Fingerprint, Coffee } from "lucide-react";
 import { LoginCalendar } from "@/shared/components/LoginCalendar";
 import { InstallPwaPrompt } from "@/shared/components/InstallPwaPrompt";
 
 // The Diet Panel - fused into the environment
 export function MobileDiet() {
-  const diet = useDietStore(state => state.getDietForToday());
+  const { diet, isRecovery, activeType, setDietPreference } = useTodayDiet();
 
   return (
     <div className="flex flex-col gap-6 p-6 pt-40 text-white">
       <header className="pb-2">
         <h2 className="text-3xl font-semibold tracking-tight">Diet Plan</h2>
-        <p className="text-zinc-500 text-sm mt-1">Today&apos;s protocol: <span className="text-cyan-400 font-medium">{diet.type}</span></p>
+        <div className="mt-3 flex items-center justify-between">
+          <p className="text-zinc-500 text-sm">Today&apos;s protocol: <span className="text-cyan-400 font-medium">{diet.type}</span></p>
+          
+          {!isRecovery && (
+            <div className="flex bg-white/[0.03] p-1 rounded-full border border-white/[0.08]">
+              <button 
+                onClick={() => setDietPreference('VEG')}
+                className={`px-3 py-1 text-[10px] font-bold tracking-widest rounded-full transition-all ${activeType === 'VEG' ? 'bg-cyan-500/20 text-cyan-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                VEG
+              </button>
+              <button 
+                onClick={() => setDietPreference('NON-VEG')}
+                className={`px-3 py-1 text-[10px] font-bold tracking-widest rounded-full transition-all ${activeType === 'NON-VEG' ? 'bg-cyan-500/20 text-cyan-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                NON-VEG
+              </button>
+            </div>
+          )}
+        </div>
       </header>
       
-      <div className="flex flex-col gap-4 mt-4">
-        {diet.meals.map((meal, i) => (
+      <div className="flex flex-col gap-4 mt-2">
+        <AnimatePresence mode="wait">
           <motion.div 
-            key={i}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] }}
-            className="p-5 rounded-3xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-md relative overflow-hidden"
+            key={activeType}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.2 }}
+            className="flex flex-col gap-4"
           >
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-cyan-500/50 to-transparent" />
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2 block">{meal.meal}</span>
-            <span className="text-zinc-200 leading-relaxed text-sm">{meal.food}</span>
+            {diet.meals.map((meal, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
+                className="p-5 rounded-3xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-md relative overflow-hidden"
+              >
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-cyan-500/50 to-transparent" />
+                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2 block">{meal.meal}</span>
+                <span className="text-zinc-200 leading-relaxed text-sm">{meal.food}</span>
+              </motion.div>
+            ))}
           </motion.div>
-        ))}
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -47,7 +77,8 @@ export function MobileAttendance() {
     showPulse,
     isLockedIn,
     isRegistering,
-    interactionState
+    interactionState,
+    isHoliday
   } = useAttendanceFlow();
 
   return (
@@ -76,18 +107,30 @@ export function MobileAttendance() {
         <motion.button 
           layout
           onClick={handleMarkAttendance}
-          disabled={isLockedIn || isRegistering}
-          whileTap={isLockedIn || isRegistering ? {} : { scale: 0.92 }}
+          disabled={isLockedIn || isRegistering || isHoliday}
+          whileTap={isLockedIn || isRegistering || isHoliday ? {} : { scale: 0.92 }}
           className={`h-40 w-40 sm:h-44 sm:w-44 shrink-0 rounded-full flex flex-col items-center justify-center relative z-10 transition-all duration-700 outline-none overflow-hidden ${
-            isLockedIn 
-              ? 'bg-cyan-500/10 shadow-[0_0_30px_rgba(6,182,212,0.15)] cursor-default' 
-              : isRegistering
-                ? 'bg-cyan-500/5 shadow-[0_0_40px_rgba(6,182,212,0.2)]'
-                : 'bg-white/[0.03] hover:bg-white/[0.06] shadow-[0_0_20px_rgba(255,255,255,0.03)]'
+            isHoliday
+              ? 'bg-amber-500/10 shadow-[0_0_30px_rgba(251,191,36,0.1)] cursor-default'
+              : isLockedIn 
+                ? 'bg-cyan-500/10 shadow-[0_0_30px_rgba(6,182,212,0.15)] cursor-default' 
+                : isRegistering
+                  ? 'bg-cyan-500/5 shadow-[0_0_40px_rgba(6,182,212,0.2)]'
+                  : 'bg-white/[0.03] hover:bg-white/[0.06] shadow-[0_0_20px_rgba(255,255,255,0.03)]'
           }`}
         >
           <AnimatePresence mode="wait">
-            {isRegistering ? (
+            {isHoliday ? (
+              <motion.div
+                key="holiday"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex flex-col items-center text-amber-400 transition-colors"
+              >
+                <Coffee className="h-12 w-12 mb-2 opacity-90 drop-shadow-[0_0_15px_rgba(251,191,36,0.5)]" strokeWidth={1.5} />
+                <span className="text-xs font-bold tracking-widest uppercase opacity-90 leading-snug text-center">REST DAY</span>
+              </motion.div>
+            ) : isRegistering ? (
               <motion.div
                 key="registering"
                 initial={{ scale: 0.8, opacity: 0 }}

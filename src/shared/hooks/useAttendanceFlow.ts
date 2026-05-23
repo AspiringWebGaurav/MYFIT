@@ -19,8 +19,10 @@ export function useAttendanceFlow() {
     }
   }, [user, checkAttendanceStatus]);
 
+  const isHoliday = new Date().getDay() === 0;
+
   const handleMarkAttendance = useCallback(async () => {
-    if (user && !isAttendedToday && interactionState === 'idle') {
+    if (user && !isAttendedToday && interactionState === 'idle' && !isHoliday) {
       setInteractionState('registering');
       
       const networkPromise = markAttendance(user.uid);
@@ -44,6 +46,7 @@ export function useAttendanceFlow() {
     showPulse,
     isLockedIn,
     isRegistering,
-    interactionState
+    interactionState,
+    isHoliday
   };
 }

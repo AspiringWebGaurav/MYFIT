@@ -71,6 +71,13 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
       return;
     }
 
+    // 2. Sunday Holiday Check (Backend validation)
+    const date = new Date();
+    if (date.getDay() === 0) {
+      console.error("Attendance disabled: Sunday is a mandated holiday.");
+      return;
+    }
+
     // Optimistic update
     const today = getLocalTodayString();
     set((state) => ({ 
