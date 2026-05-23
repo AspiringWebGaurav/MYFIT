@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/shared/store/useAuthStore';
+import { submitAccessRequest } from '@/app/actions/accessRequests';
 import { OceanicBackground } from '@/shared/components/OceanicBackground';
 import { LiveDateTimeBar } from '@/shared/components/LiveDateTimeBar';
 import { Logo } from '@/shared/components/Logo';
@@ -24,8 +25,15 @@ export function MobileLogin() {
   const logout = useAuthStore(state => state.logout);
   const clearError = useAuthStore(state => state.clearError);
   const authStatus = useAuthStore(state => state.authStatus);
+  const requestPayload = useAuthStore(state => state.requestPayload);
+  const clearRequestPayload = useAuthStore(state => state.clearRequestPayload);
+  
   const [mounted, setMounted] = useState(false);
   const [wordIndex, setWordIndex] = useState(0);
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [requestStatus, setRequestStatus] = useState<'idle' | 'success' | 'duplicate'>('idle');
+  const [statusMessage, setStatusMessage] = useState("");
+
 
   const pointerX = useMotionValue(0);
   const pointerY = useMotionValue(0);
@@ -76,12 +84,36 @@ export function MobileLogin() {
 
   const handleSwitchAccount = async () => {
     await logout();
-    clearError();
+    clearRequestPayload();
     // Using a brief timeout to let React clean up state before reopening the popup
     setTimeout(() => {
       login();
     }, 250);
   };
+
+  const handleRequestAccess = async () => {
+    if (!requestPayload) return;
+    setIsRequesting(true);
+    const result = await submitAccessRequest(requestPayload);
+    setIsRequesting(false);
+    
+    if (result.success) {
+      setRequestStatus('success');
+      setStatusMessage("✓ Request Submitted");
+    } else if (result.error.includes("already submitted") || result.rateLimited) {
+      setRequestStatus('duplicate');
+      setStatusMessage(result.error);
+    }
+    
+    setTimeout(() => {
+      setRequestStatus('idle');
+      if (result.success) {
+         clearRequestPayload();
+         clearError();
+      }
+    }, 4000);
+  };
+
 
   // Apple-level premium easing curve
   const cinematicEase: [number, number, number, number] = [0.16, 1, 0.3, 1];
@@ -380,10 +412,28 @@ export function MobileLogin() {
                 {/* Mobile Touch-Optimized Actions */}
                 <div className="flex flex-col w-full gap-3">
                   <motion.button
-                    whileTap={{ scale: 0.96 }}
-                    className="w-full bg-cyan-500/10 border border-cyan-400/30 active:bg-cyan-500/20 text-cyan-50 py-3.5 rounded-[1.25rem] text-[15px] font-medium transition-colors shadow-[0_0_15px_rgba(6,182,212,0.1)] flex items-center justify-center"
+                    onClick={handleRequestAccess}
+                    disabled={isRequesting}
+                    whileTap={!isRequesting ? { scale: 0.96 } : {}}
+                    className="w-full bg-cyan-500/10 border border-cyan-400/30 active:bg-cyan-500/20 text-cyan-50 py-3.5 rounded-[1.25rem] text-[15px] font-medium transition-colors shadow-[0_0_15px_rgba(6,182,212,0.1)] flex items-center justify-center relative overflow-hidden"
                   >
-                    Request Access
+                    <AnimatePresence>
+                      {isRequesting && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="absolute inset-0 z-0 bg-cyan-500/20"
+                        >
+                           <motion.div
+                              animate={{ x: ['-100%', '100%'] }}
+                              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                              className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent skew-x-12"
+                           />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    <span className="relative z-10">{isRequesting ? 'Requesting...' : 'Request Access'}</span>
                   </motion.button>
                   
                   <motion.button 
@@ -396,6 +446,39 @@ export function MobileLogin() {
                 </div>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Request Status Modal */}
+      <AnimatePresence>
+        {requestStatus !== 'idle' && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9, filter: "blur(4px)" }}
+            className="absolute inset-0 z-50 flex items-center justify-center p-6"
+          >
+            <div className="absolute inset-0 bg-[#020B1A]/80 backdrop-blur-md rounded-[2.5rem]" />
+            <div className="relative w-full max-w-[320px] bg-[#041222] border border-cyan-500/30 p-8 rounded-[2rem] text-center shadow-2xl overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-80" />
+              
+              <motion.div 
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", delay: 0.1 }}
+                className={`w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center text-2xl ${requestStatus === 'success' ? 'bg-teal-500/20 border-teal-500/30 text-teal-400' : 'bg-amber-500/20 border-amber-500/30 text-amber-400'} border`}
+              >
+                {requestStatus === 'success' ? '✓' : '!'}
+              </motion.div>
+              
+              <h3 className="text-white text-xl font-semibold mb-2">{statusMessage}</h3>
+              {requestStatus === 'success' && (
+                <p className="text-cyan-100/60 text-sm font-light leading-relaxed">
+                  We&apos;ll get back to your email after review.
+                </p>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

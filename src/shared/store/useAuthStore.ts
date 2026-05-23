@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { User, signInWithPopup, signOut } from 'firebase/auth';
-import { auth, googleProvider } from '../firebase/config';
+import { auth, googleProvider, db } from '../firebase/config';
+import { doc, getDoc } from 'firebase/firestore';
 
 // 1. Non-Reactive Module-Level Locks & Refs
 let popupSessionActive = false;
@@ -19,12 +20,15 @@ interface AuthState {
   authStatus: AuthStatus;
   error: string | null;
   isInitialAuthReady: boolean;
+  requestPayload: { email: string; displayName: string; timestamp: number } | null;
+  
   
   login: () => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: User | null) => void;
   setAuthStatus: (status: AuthStatus) => void;
   clearError: () => void;
+  clearRequestPayload: () => void;
   resetAuthSafely: (reason?: string) => void;
 }
 
@@ -33,6 +37,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   authStatus: 'idle',
   error: null,
   isInitialAuthReady: false,
+  requestPayload: null,
 
   login: async () => {
     // FORCE CLEANUP of any pending focus timeouts when a new login starts
@@ -74,9 +79,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // If this attempt is no longer the active one, bail out silently
       if (currentAttempt !== authAttemptId) return;
 
-      if (result.user.email !== 'gauravpatil9262@gmail.com') {
+      const userEmail = result.user.email?.toLowerCase();
+      let isApproved = false;
+      
+      if (userEmail === 'gauravpatil9262@gmail.com') {
+        isApproved = true;
+      } else if (userEmail) {
+        try {
+          const docRef = doc(db, 'approved_users', userEmail);
+          const docSnap = await getDoc(docRef);
+          isApproved = docSnap.exists();
+        } catch (e) {
+          console.error("Failed to check approval status", e);
+        }
+      }
+
+      if (!isApproved) {
+        const payload = {
+          email: result.user.email || '',
+          displayName: result.user.displayName || 'Unknown User',
+          timestamp: Date.now()
+        };
         await signOut(auth);
-        set({ authStatus: 'error', error: 'unauthorized', user: null });
+        set({ authStatus: 'error', error: 'unauthorized', user: null, requestPayload: payload });
         popupSessionActive = false;
         return;
       }
@@ -119,17 +144,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user: null, authStatus: 'idle', error: null });
   },
 
-  setUser: (user) => {
-    if (user && user.email !== 'gauravpatil9262@gmail.com') {
-        signOut(auth);
-        set({ error: 'unauthorized', user: null, authStatus: 'error', isInitialAuthReady: true });
-        return;
+  setUser: async (user) => {
+    if (user) {
+      const userEmail = user.email?.toLowerCase();
+      let isApproved = false;
+      
+      if (userEmail === 'gauravpatil9262@gmail.com') {
+        isApproved = true;
+      } else if (userEmail) {
+        try {
+          const docRef = doc(db, 'approved_users', userEmail);
+          const docSnap = await getDoc(docRef);
+          isApproved = docSnap.exists();
+        } catch (e) {
+          console.error("Failed to check approval status on setUser", e);
+        }
+      }
+
+      if (!isApproved) {
+          signOut(auth);
+          set({ error: 'unauthorized', user: null, authStatus: 'error', isInitialAuthReady: true });
+          return;
+      }
     }
     set({ user, isInitialAuthReady: true, authStatus: user ? 'success' : 'idle' });
   },
 
   setAuthStatus: (status) => set({ authStatus: status }),
-  clearError: () => set({ error: null, authStatus: 'idle' }),
+  clearError: () => set({ error: null, authStatus: 'idle', requestPayload: null }),
+  clearRequestPayload: () => set({ requestPayload: null }),
   
   resetAuthSafely: (reason = 'manual') => {
     if (get().authStatus === 'loading' || popupSessionActive) {

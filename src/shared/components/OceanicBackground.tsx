@@ -18,17 +18,19 @@ export function OceanicBackground({
   const [isMobile, setIsMobile] = useState(false);
   const prefersReducedMotion = useReducedMotion();
   
-  // High-performance cursor tracking
-  const mouseX = useMotionValue(typeof window !== 'undefined' ? window.innerWidth / 2 : 960);
-  const mouseY = useMotionValue(typeof window !== 'undefined' ? window.innerHeight / 2 : 540);
+  const [center, setCenter] = useState({ x: 960, y: 540 });
+
+  // High-performance cursor tracking (start with 960/540 to match SSR)
+  const mouseX = useMotionValue(960);
+  const mouseY = useMotionValue(540);
   
   // Smooth spring physics for premium parallax feel
   const smoothMouseX = useSpring(mouseX, { damping: 50, stiffness: 300, mass: 0.5 });
   const smoothMouseY = useSpring(mouseY, { damping: 50, stiffness: 300, mass: 0.5 });
 
   // Parallax layer transforms
-  const normX = useTransform(smoothMouseX, (v) => interactive ? (v - (typeof window !== 'undefined' ? window.innerWidth / 2 : 960)) / 100 : 0);
-  const normY = useTransform(smoothMouseY, (v) => interactive ? (v - (typeof window !== 'undefined' ? window.innerHeight / 2 : 540)) / 100 : 0);
+  const normX = useTransform(smoothMouseX, (v) => interactive ? (v - center.x) / 100 : 0);
+  const normY = useTransform(smoothMouseY, (v) => interactive ? (v - center.y) / 100 : 0);
 
   const bgParallaxX = useTransform(normX, (v) => v * -2);
   const bgParallaxY = useTransform(normY, (v) => v * -2);
@@ -40,12 +42,9 @@ export function OceanicBackground({
   const orbParallaxY = useTransform(normY, (v) => v * 4);
 
   // Dynamic spotlight gradient tied to smooth mouse position for cinematic cursor atmosphere
-  // If not interactive, we can center the spotlight
-  const centerX = typeof window !== 'undefined' ? window.innerWidth / 2 : 960;
-  const centerY = typeof window !== 'undefined' ? window.innerHeight / 2 : 540;
-  
-  const activeX = interactive ? smoothMouseX : centerX;
-  const activeY = interactive ? smoothMouseY : centerY;
+  // If not interactive, we center the spotlight
+  const activeX = interactive ? smoothMouseX : center.x;
+  const activeY = interactive ? smoothMouseY : center.y;
 
   const spotlightBackground = useMotionTemplate`radial-gradient(1200px circle at ${activeX}px ${activeY}px, rgba(45, 212, 191, 0.12), transparent 50%)`;
   const subtleSpotlightBackground = useMotionTemplate`radial-gradient(600px circle at ${activeX}px ${activeY}px, rgba(6, 182, 212, 0.18), transparent 50%)`;
@@ -77,10 +76,12 @@ export function OceanicBackground({
     );
     
     if (typeof window !== 'undefined') {
+      setCenter({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
       mouseX.set(window.innerWidth / 2);
       mouseY.set(window.innerHeight / 2);
     }
-  }, [mouseX, mouseY]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!interactive) return;

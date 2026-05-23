@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/shared/store/useAuthStore';
+import { submitAccessRequest } from '@/app/actions/accessRequests';
 import { OceanicBackground } from '@/shared/components/OceanicBackground';
 import { LiveDateTimeBar } from '@/shared/components/LiveDateTimeBar';
 import { Logo } from '@/shared/components/Logo';
@@ -23,7 +24,14 @@ export function DesktopLogin() {
   const logout = useAuthStore(state => state.logout);
   const clearError = useAuthStore(state => state.clearError);
   const authStatus = useAuthStore(state => state.authStatus);
+  const requestPayload = useAuthStore(state => state.requestPayload);
+  const clearRequestPayload = useAuthStore(state => state.clearRequestPayload);
+  
   const [currentWord, setCurrentWord] = useState(0);
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [requestStatus, setRequestStatus] = useState<'idle' | 'success' | 'duplicate'>('idle');
+  const [statusMessage, setStatusMessage] = useState("");
+
   
   // High-performance cursor tracking
   const mouseX = useMotionValue(0);
@@ -64,10 +72,35 @@ export function DesktopLogin() {
   const handleSwitchAccount = async () => {
     await logout();
     clearError();
+    clearRequestPayload();
     setTimeout(() => {
       login();
     }, 250);
   };
+
+  const handleRequestAccess = async () => {
+    if (!requestPayload) return;
+    setIsRequesting(true);
+    const result = await submitAccessRequest(requestPayload);
+    setIsRequesting(false);
+    
+    if (result.success) {
+      setRequestStatus('success');
+      setStatusMessage("✓ Request Submitted");
+    } else if (result.error.includes("already submitted") || result.rateLimited) {
+      setRequestStatus('duplicate');
+      setStatusMessage(result.error);
+    }
+    
+    setTimeout(() => {
+      setRequestStatus('idle');
+      if (result.success) {
+         clearRequestPayload();
+         clearError();
+      }
+    }, 4000);
+  };
+
 
   const isAuthLoading = authStatus === 'loading' || authStatus === 'success';
 
@@ -201,16 +234,36 @@ export function DesktopLogin() {
                   {/* Actions */}
                   <div className="flex flex-col items-center gap-5 relative z-10 mt-1">
                     <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="w-full bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/20 hover:border-cyan-400/40 text-cyan-50 py-3.5 rounded-2xl text-[15px] font-medium transition-all duration-300 shadow-[0_0_20px_rgba(6,182,212,0.05)] hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] flex items-center justify-center gap-2 group"
+                      onClick={handleRequestAccess}
+                      disabled={isRequesting}
+                      whileHover={!isRequesting ? { scale: 1.02 } : {}}
+                      whileTap={!isRequesting ? { scale: 0.98 } : {}}
+                      className="w-full bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/20 hover:border-cyan-400/40 text-cyan-50 py-3.5 rounded-2xl text-[15px] font-medium transition-all duration-300 shadow-[0_0_20px_rgba(6,182,212,0.05)] hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] flex items-center justify-center gap-2 group overflow-hidden relative"
                     >
-                      <span>Request Access</span>
-                      <motion.span 
-                        className="opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300"
-                      >
-                        →
-                      </motion.span>
+                      <AnimatePresence>
+                        {isRequesting && (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 z-0 bg-cyan-900/40"
+                          >
+                             <motion.div
+                                animate={{ x: ['-100%', '100%'] }}
+                                transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                                className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-cyan-400/20 to-transparent skew-x-12"
+                             />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                      <span className="relative z-10">{isRequesting ? 'Requesting...' : 'Request Access'}</span>
+                      {!isRequesting && (
+                        <motion.span 
+                          className="opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300 relative z-10"
+                        >
+                          →
+                        </motion.span>
+                      )}
                     </motion.button>
                     
                     <div className="flex flex-col items-center gap-1.5">
@@ -222,6 +275,39 @@ export function DesktopLogin() {
                         Try another Google account
                       </button>
                     </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Request Status Modal */}
+            <AnimatePresence>
+              {requestStatus !== 'idle' && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9, filter: "blur(4px)" }}
+                  className="absolute inset-0 z-50 flex items-center justify-center p-6"
+                >
+                  <div className="absolute inset-0 bg-[#020B1A]/80 backdrop-blur-md rounded-3xl" />
+                  <div className="relative w-full max-w-[320px] bg-[#041222] border border-cyan-500/30 p-8 rounded-3xl text-center shadow-2xl overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-80" />
+                    
+                    <motion.div 
+                      initial={{ scale: 0.5, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", delay: 0.1 }}
+                      className={`w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center text-2xl ${requestStatus === 'success' ? 'bg-teal-500/20 border-teal-500/30 text-teal-400' : 'bg-amber-500/20 border-amber-500/30 text-amber-400'} border`}
+                    >
+                      {requestStatus === 'success' ? '✓' : '!'}
+                    </motion.div>
+                    
+                    <h3 className="text-white text-xl font-semibold mb-2">{statusMessage}</h3>
+                    {requestStatus === 'success' && (
+                      <p className="text-cyan-100/60 text-sm font-light leading-relaxed">
+                        We&apos;ll get back to your email after review.
+                      </p>
+                    )}
                   </div>
                 </motion.div>
               )}
