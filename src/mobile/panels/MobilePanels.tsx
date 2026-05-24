@@ -4,7 +4,11 @@ import { useAuthStore } from "@/shared/store/useAuthStore";
 import { useDietStore, useTodayDiet } from "@/shared/store/useDietStore";
 import { useAttendanceStore } from "@/shared/store/useAttendanceStore";
 import { useAppStore } from "@/shared/store/useAppStore";
-import { Check, Loader2, Target, Calendar, Fingerprint, Coffee } from "lucide-react";
+import { useWorkoutStore, TrainingType } from "@/shared/store/useWorkoutStore";
+// TEST_MODE_ONLY
+import { APP_TEST_MODE, getTestCurrentDay } from "@/shared/utils/testMode";
+import { useSandboxStore } from "@/shared/store/useSandboxStore";
+import { Check, Loader2, Target, Calendar, Fingerprint, Coffee, Edit3, Dumbbell } from "lucide-react";
 import { LoginCalendar } from "@/shared/components/LoginCalendar";
 import { InstallPwaPrompt } from "@/shared/components/InstallPwaPrompt";
 
@@ -198,7 +202,7 @@ export function MobileSettings() {
     <div className="flex flex-col flex-1 p-6 pt-40 text-white">
       <header className="pb-2">
         <h2 className="text-3xl font-semibold tracking-tight">Settings</h2>
-        <p className="text-zinc-500 text-sm mt-1">Manage your space.</p>
+        <p className="text-zinc-400 text-sm mt-2">Rest up, you&apos;ve earned it.</p>
       </header>
       
       <div className="flex flex-col gap-4 mt-4 flex-1">
@@ -219,6 +223,233 @@ export function MobileSettings() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// The Workout Panel
+export function MobileWorkout() {
+  // TEST_MODE_ONLY forces re-render when global sandbox date changes
+  const testDateStr = useSandboxStore(state => APP_TEST_MODE ? state.testDateStr : null);
+  const currentDay = APP_TEST_MODE ? getTestCurrentDay() : new Date().getDay();
+  
+  const weeklyPlan = useWorkoutStore(state => state.weeklyPlan);
+  const setDailyPlan = useWorkoutStore(state => state.setDailyPlan);
+  const todayPlan = weeklyPlan[currentDay];
+  
+  const [selectedType, setSelectedType] = useState<TrainingType>(todayPlan.type);
+  const [selectedMuscles, setSelectedMuscles] = useState<string[]>(todayPlan.muscles || []);
+  const [isApplying, setIsApplying] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Sync state when time-traveling in test mode or advancing days
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelectedType(todayPlan.type);
+    setSelectedMuscles(todayPlan.muscles || []);
+    setIsEditing(false); // Reset to view mode when switching days
+  }, [currentDay, todayPlan.type, todayPlan.muscles]); // Trigger when day or plan changes
+
+  const trainingTypes: TrainingType[] = ['Dual Muscle', 'Single Muscle', 'Cardio', 'Full Body', 'Recovery'];
+  const musclesList = ['Biceps', 'Triceps', 'Chest', 'Back', 'Shoulders', 'Legs', 'Abs'];
+
+  const handleMuscleToggle = (m: string) => {
+    setSelectedMuscles(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]);
+  };
+
+  const handleApply = async () => {
+    setIsApplying(true);
+    // Simulate premium syncing delay
+    await new Promise(r => setTimeout(r, 600));
+    setDailyPlan(currentDay, { 
+      type: selectedType, 
+      muscles: selectedType === 'Recovery' || selectedType === 'Cardio' ? [] : selectedMuscles 
+    });
+    setIsApplying(false);
+    setIsSuccess(true);
+    setTimeout(() => {
+      setIsSuccess(false);
+      setIsEditing(false); // Go back to saved view after applying
+    }, 2000);
+  };
+
+  const getEstimatedDuration = (type: TrainingType) => {
+    switch (type) {
+      case 'Dual Muscle': return '45–60 min';
+      case 'Single Muscle': return '40–50 min';
+      case 'Cardio': return '30–45 min';
+      case 'Full Body': return '60–75 min';
+      case 'Recovery': return '0 min';
+      default: return '-- min';
+    }
+  };
+
+  const isRestDay = todayPlan.dayConfig === 'recovery';
+
+  return (
+    <div className="flex flex-col gap-4 p-6 pt-28 text-white h-full pb-24 overflow-hidden relative">
+      <header className="pb-2 shrink-0 flex items-start justify-between">
+        <div>
+          <h2 className="text-3xl font-semibold tracking-tight">Workout Cycle</h2>
+          <p className="text-zinc-500 text-sm mt-1">{isEditing ? "Edit Today's Focus" : "Today's Focus"}</p>
+        </div>
+        {isEditing && todayPlan.type && (
+          <button 
+            onClick={() => setIsEditing(false)} 
+            className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest bg-white/5 px-3 py-2 rounded-full border border-white/10"
+          >
+            Cancel
+          </button>
+        )}
+      </header>
+
+      {isRestDay ? (
+        <div className="flex flex-col items-center justify-center py-20 text-amber-400">
+           <Coffee className="h-16 w-16 mb-4 opacity-90 drop-shadow-[0_0_15px_rgba(251,191,36,0.5)]" strokeWidth={1.5} />
+           <h3 className="text-xl font-bold tracking-widest uppercase opacity-90 text-center">Mandatory<br/>Rest Day</h3>
+        </div>
+      ) : !isEditing && todayPlan.type ? (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col gap-4 flex-1 mt-4"
+        >
+          <div className="p-8 rounded-[32px] bg-gradient-to-br from-cyan-500/10 to-transparent border border-cyan-500/20 relative overflow-hidden flex flex-col items-center text-center shadow-[0_0_30px_rgba(6,182,212,0.1)]">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-500/10 via-transparent to-transparent" />
+            
+            <div className="w-16 h-16 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center mb-6 relative z-10 shadow-[0_0_20px_rgba(6,182,212,0.2)]">
+              <Dumbbell className="w-8 h-8 text-cyan-400" strokeWidth={1.5} />
+            </div>
+
+            <div className="relative z-10 flex flex-col gap-1 w-full">
+              <span className="text-xs font-bold text-cyan-400/70 uppercase tracking-widest mb-1">{todayPlan.type}</span>
+              <h3 className="text-3xl font-bold tracking-tight text-white leading-tight">
+                {todayPlan.type === 'Recovery' ? 'Active Recovery' : 
+                 todayPlan.type === 'Cardio' ? 'Cardiovascular' :
+                 todayPlan.muscles && todayPlan.muscles.length > 0 ? todayPlan.muscles.join(' + ') : 'Focus'}
+              </h3>
+              
+              <div className="mt-6 flex items-center justify-center gap-2 bg-black/40 py-2.5 px-5 rounded-full border border-white/5 w-max mx-auto">
+                <Target className="w-4 h-4 text-zinc-400" />
+                <span className="text-sm font-medium text-zinc-300">{getEstimatedDuration(todayPlan.type)}</span>
+              </div>
+            </div>
+          </div>
+
+          <button 
+            onClick={() => setIsEditing(true)}
+            className="w-full h-14 rounded-2xl bg-white/[0.03] text-zinc-300 font-bold tracking-wide border border-white/[0.08] hover:bg-white/[0.06] hover:text-white transition-all active:scale-[0.98] mt-2 flex items-center justify-center gap-2"
+          >
+            <Edit3 className="w-4 h-4" />
+            Edit Plan
+          </button>
+        </motion.div>
+      ) : (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex flex-col gap-4 flex-1 mt-2"
+        >
+          {/* Training Type Selector */}
+          <div>
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 block">Session Type</span>
+            <div className="flex flex-wrap gap-2">
+              {trainingTypes.map(t => (
+                <button
+                  key={t!}
+                  onClick={() => { setSelectedType(t); setSelectedMuscles([]); }}
+                  className={`px-3 py-2 text-[10px] font-bold tracking-widest uppercase rounded-full border transition-all ${
+                    selectedType === t 
+                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]' 
+                      : 'bg-white/[0.03] text-zinc-400 border-white/[0.08] hover:text-zinc-200'
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Muscle Selector */}
+          {(selectedType === 'Dual Muscle' || selectedType === 'Single Muscle' || selectedType === 'Full Body') && (
+            <div className="mt-2">
+              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 block">Target Muscles</span>
+              <div className="flex flex-wrap gap-2">
+                {musclesList.map(m => (
+                  <button
+                    key={m}
+                    onClick={() => handleMuscleToggle(m)}
+                    className={`px-4 py-2.5 rounded-xl border backdrop-blur-md flex-1 min-w-[28%] transition-all ${
+                      selectedMuscles.includes(m)
+                        ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-100 shadow-[0_0_15px_rgba(6,182,212,0.15)]'
+                        : 'bg-white/[0.03] border-white/[0.08] text-zinc-400'
+                    }`}
+                  >
+                    <span className="text-xs font-bold tracking-wide uppercase">{m}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Apply Button with Premium UX */}
+          <div className="mt-auto pt-4 shrink-0">
+            <motion.button 
+              layout
+              whileTap={!isApplying && !isSuccess ? { scale: 0.97 } : {}}
+              onClick={handleApply}
+              disabled={!selectedType || (['Dual Muscle', 'Single Muscle', 'Full Body'].includes(selectedType) && selectedMuscles.length === 0) || isApplying || isSuccess}
+              className={`relative w-full h-14 rounded-2xl font-bold tracking-widest uppercase text-xs overflow-hidden transition-all duration-300 ${
+                isSuccess
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 shadow-[0_0_30px_rgba(16,185,129,0.2)]'
+                  : 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.1)] disabled:opacity-30 disabled:grayscale'
+              }`}
+            >
+              <AnimatePresence mode="wait">
+                {isApplying ? (
+                  <motion.div
+                    key="applying"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="flex items-center justify-center gap-2 h-full"
+                  >
+                    <Loader2 className="w-4 h-4 animate-spin text-cyan-300" />
+                    <span className="text-cyan-300">Syncing...</span>
+                  </motion.div>
+                ) : isSuccess ? (
+                  <motion.div
+                    key="success"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    className="flex items-center justify-center gap-2 h-full drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]"
+                  >
+                    <Check className="w-5 h-5" strokeWidth={3} />
+                    <span>Locked In</span>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="idle"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center justify-center h-full w-full absolute inset-0"
+                  >
+                    Apply Today's Plan
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              
+              {/* Shimmer effect for idle state */}
+              {!isApplying && !isSuccess && (
+                <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_2s_infinite]" />
+              )}
+            </motion.button>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }

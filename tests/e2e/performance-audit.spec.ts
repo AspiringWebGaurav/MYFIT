@@ -34,9 +34,9 @@ test.describe('Performance and Stability Audit', () => {
       let cumulativeLayoutShiftScore = 0;
       const observer = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
-          // @ts-ignore
+          // @ts-expect-error - TS doesn't know about hadRecentInput for LayoutShift
           if (!entry.hadRecentInput) {
-            // @ts-ignore
+            // @ts-expect-error - TS doesn't know about value for LayoutShift
             cumulativeLayoutShiftScore += entry.value;
           }
         }

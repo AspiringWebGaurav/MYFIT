@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/shared/store/useAuthStore';
 import { useAttendanceStore } from '@/shared/store/useAttendanceStore';
 import { useAppStore } from '@/shared/store/useAppStore';
+import { getGlobalDate } from '@/shared/utils/testMode';
 
 export function useAttendanceFlow() {
   const user = useAuthStore(state => state.user);
@@ -19,7 +20,7 @@ export function useAttendanceFlow() {
     }
   }, [user, checkAttendanceStatus]);
 
-  const isHoliday = new Date().getDay() === 0;
+  const isHoliday = getGlobalDate().getDay() === 0;
 
   const handleMarkAttendance = useCallback(async () => {
     if (user && !isAttendedToday && interactionState === 'idle' && !isHoliday) {
@@ -36,7 +37,7 @@ export function useAttendanceFlow() {
       setShowPulse(true);
       setTimeout(() => setShowPulse(false), 2000);
     }
-  }, [user, isAttendedToday, interactionState, markAttendance, incrementStreak]);
+  }, [user, isAttendedToday, interactionState, markAttendance, incrementStreak, isHoliday]);
 
   const isLockedIn = isAttendedToday || interactionState === 'complete';
   const isRegistering = interactionState === 'registering';

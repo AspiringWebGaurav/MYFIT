@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAttendanceStore } from '@/shared/store/useAttendanceStore';
 import { useAuthStore } from '@/shared/store/useAuthStore';
+import { getGlobalDate, APP_TEST_MODE } from '@/shared/utils/testMode';
+import { useSandboxStore } from '@/shared/store/useSandboxStore';
 
 interface LoginCalendarProps {
   compact?: boolean;
@@ -15,9 +17,18 @@ export function LoginCalendar({ compact = false }: LoginCalendarProps) {
   const user = useAuthStore((state) => state.user);
   const attendanceHistory = useAttendanceStore((state) => state.attendanceHistory);
   const fetchAttendanceHistory = useAttendanceStore((state) => state.fetchAttendanceHistory);
-
-  const [currentDate, setCurrentDate] = useState(new Date());
   
+  // TEST_MODE_ONLY: Reactively update calendar if sandbox date changes
+  const testDateStr = useSandboxStore(state => APP_TEST_MODE ? state.testDateStr : null);
+
+  const [currentDate, setCurrentDate] = useState(getGlobalDate());
+  
+  // Keep the calendar in sync with the global date (e.g. when time traveling in test mode)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCurrentDate(getGlobalDate());
+  }, [testDateStr]);
+
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
 
@@ -48,7 +59,7 @@ export function LoginCalendar({ compact = false }: LoginCalendarProps) {
 
   const renderDays = () => {
     const days = [];
-    const today = new Date();
+    const today = getGlobalDate();
     
     // Empty slots before the first day
     for (let i = 0; i < firstDay; i++) {
@@ -95,7 +106,7 @@ export function LoginCalendar({ compact = false }: LoginCalendarProps) {
         {!compact && (
           <button 
             onClick={nextMonth} 
-            disabled={currentYear === new Date().getFullYear() && currentMonth === new Date().getMonth()}
+            disabled={currentYear === getGlobalDate().getFullYear() && currentMonth === getGlobalDate().getMonth()}
             className="p-2 rounded-full text-zinc-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-zinc-400"
           >
             <ChevronRight className="w-5 h-5" />

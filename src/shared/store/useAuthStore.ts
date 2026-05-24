@@ -1,9 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { User, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, googleProvider, db } from '../firebase/config';
 import { doc, getDoc, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { checkAccountStatus } from '@/app/actions/accessRequests';
+
+// TEST_MODE_ONLY
+import { APP_TEST_MODE } from '@/shared/utils/testMode';
+import { useSandboxStore } from '@/shared/store/useSandboxStore';
 
 // 1. Non-Reactive Module-Level Locks & Refs
 let popupSessionActive = false;
@@ -12,6 +17,8 @@ let focusTimeout: NodeJS.Timeout | null = null;
 let unsubscribeAccessListener: Unsubscribe | null = null;
 
 function setupLiveAccessSync(email: string) {
+  // TEST_MODE_ONLY
+  if (APP_TEST_MODE) return;
   if (unsubscribeAccessListener) {
     unsubscribeAccessListener();
     unsubscribeAccessListener = null;
@@ -75,6 +82,27 @@ export const useAuthStore = create<AuthState>()(
   requestPayload: null,
 
   login: async () => {
+    // TEST_MODE_ONLY
+    if (APP_TEST_MODE) {
+      set({ authStatus: 'loading', error: null });
+      await new Promise(r => setTimeout(r, 500));
+      const accountStatus = useSandboxStore.getState().testAccountStatus;
+      const mockUser = { email: 'sandbox@myfit.test', displayName: 'Sandbox User', uid: 'sandbox_user_123' } as any;
+
+      if (accountStatus === 'approved') {
+        set({ user: mockUser, authStatus: 'approved', error: null });
+        return;
+      }
+
+      set({ 
+        authStatus: 'error', 
+        error: accountStatus === 'unrequested' ? 'unauthorized' : accountStatus, 
+        user: null, 
+        requestPayload: { email: mockUser.email, displayName: mockUser.displayName, timestamp: Date.now() } 
+      });
+      return;
+    }
+
     // E2E Test Hook
     if (typeof window !== 'undefined' && (window as any).__E2E_MOCK_USER__) {
       set({ authStatus: 'loading', error: null });
@@ -109,11 +137,11 @@ export const useAuthStore = create<AuthState>()(
       popupSessionActive = true;
       set({ authStatus: 'loading', error: null });
 
-      // Universal 10-second timeout safeguard & synchronous popup trigger
+      // Universal 5-minute timeout safeguard & synchronous popup trigger
       const authPromise = signInWithPopup(auth, googleProvider);
       
       const timeoutPromise = new Promise<never>((_, reject) => {
-        localTimeoutRef = setTimeout(() => reject(new Error('AUTH_TIMEOUT')), 10000);
+        localTimeoutRef = setTimeout(() => reject(new Error('AUTH_TIMEOUT')), 300000); // 5 minutes
       });
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -209,6 +237,12 @@ export const useAuthStore = create<AuthState>()(
   },
 
   logout: async () => {
+    // TEST_MODE_ONLY
+    if (APP_TEST_MODE) {
+      set({ user: null, authStatus: 'idle', error: null });
+      return;
+    }
+
     // E2E Test Hook
     if (typeof window !== 'undefined' && (window as any).__E2E_MOCK_USER__) {
       set({ user: null, authStatus: 'idle', error: null });
@@ -224,6 +258,18 @@ export const useAuthStore = create<AuthState>()(
   },
 
   setUser: async (user) => {
+    // TEST_MODE_ONLY
+    if (APP_TEST_MODE) {
+      const accountStatus = useSandboxStore.getState().testAccountStatus;
+      if (accountStatus === 'approved') {
+        const mockUser = { email: 'sandbox@myfit.test', displayName: 'Sandbox User', uid: 'sandbox_user_123' } as any;
+        set({ isInitialAuthReady: true, user: mockUser, authStatus: 'approved' });
+      } else {
+        set({ isInitialAuthReady: true, user: null, authStatus: 'error', error: accountStatus === 'unrequested' ? 'unauthorized' : accountStatus });
+      }
+      return;
+    }
+
     // E2E Test Hook
     if (typeof window !== 'undefined' && (window as any).__E2E_MOCK_USER__) {
       return;

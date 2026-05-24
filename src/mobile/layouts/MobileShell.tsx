@@ -1,4 +1,4 @@
-import { useEffect, useState, useLayoutEffect } from 'react';
+import { useEffect, useState, useLayoutEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/shared/store/useAppStore';
 
@@ -6,6 +6,10 @@ import { OceanicBackground } from '@/shared/components/OceanicBackground';
 import { MobilePanelOverlay } from '../components/MobilePanelOverlay';
 import { GlassNavPill } from '../components/GlassNavPill';
 import { LiveDateTimeBar } from '@/shared/components/LiveDateTimeBar';
+import { TestModeOverlay } from '@/shared/components/TestModeOverlay';
+
+// TEST_MODE_ONLY
+import { APP_TEST_MODE } from '@/shared/utils/testMode';
 
 export function MobileShell() {
   const isUnlocked = useAppStore(state => state.isUnlocked);
@@ -24,8 +28,13 @@ export function MobileShell() {
     }
   }, []);
 
-  // Sync active panel changes to sessionStorage
+  // Sync active panel changes to sessionStorage, avoiding initial render clobbering
+  const isFirstRender = useRef(true);
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     sessionStorage.setItem('mobile_active_panel', activePanel);
   }, [activePanel]);
 
@@ -72,6 +81,9 @@ export function MobileShell() {
 
             <MobilePanelOverlay />
             <GlassNavPill />
+
+            {/* TEST_MODE_ONLY */}
+            <TestModeOverlay />
           </motion.div>
         )}
       </AnimatePresence>

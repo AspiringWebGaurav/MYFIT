@@ -12,6 +12,7 @@ export const GlobalLoaderOverlay: React.FC = () => {
   const message = useLoaderStore((state) => state.message);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 

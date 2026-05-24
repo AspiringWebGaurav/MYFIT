@@ -1,5 +1,9 @@
 import { create } from 'zustand';
 
+// TEST_MODE_ONLY
+import { APP_TEST_MODE, getTestCurrentDay } from '../utils/testMode';
+import { useSandboxStore } from './useSandboxStore';
+
 export interface DietItem {
   meal: string;
   food: string;
@@ -55,7 +59,7 @@ export const useDietStore = create<DietState>((set, get) => ({
   dietPreference: 'protocol',
   setDietPreference: (pref) => set({ dietPreference: pref }),
   getDietForToday: () => {
-    const day = get().currentDay;
+    const day = APP_TEST_MODE ? getTestCurrentDay() : get().currentDay;
     const protocolType = protocolTypeMap[day];
     
     if (protocolType === "RECOVERY") {
@@ -74,9 +78,12 @@ export const useDietStore = create<DietState>((set, get) => ({
 }));
 
 export const useTodayDiet = () => {
-  const currentDay = useDietStore(state => state.currentDay);
   const dietPreference = useDietStore(state => state.dietPreference);
   const setDietPreference = useDietStore(state => state.setDietPreference);
+  
+  // TEST_MODE_ONLY forces re-render when global sandbox date changes
+  const testDateStr = useSandboxStore(state => APP_TEST_MODE ? state.testDateStr : null);
+  const currentDay = useDietStore(state => APP_TEST_MODE ? getTestCurrentDay() : state.currentDay);
   
   const protocolType = protocolTypeMap[currentDay];
   

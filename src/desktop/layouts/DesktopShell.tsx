@@ -1,21 +1,22 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Utensils, CheckCircle, LogOut } from 'lucide-react';
+import { LayoutDashboard, Utensils, CheckCircle, LogOut, Dumbbell } from 'lucide-react';
 import { useAuthStore } from '@/shared/store/useAuthStore';
-import { DesktopDashboard, DesktopDiet, DesktopAttendance } from '../panels/DesktopPanels';
+import { DesktopDashboard, DesktopDiet, DesktopAttendance, DesktopWorkout } from '../panels/DesktopPanels';
 import { OceanicBackground } from '@/shared/components/OceanicBackground';
 import { Logo } from '@/shared/components/Logo';
 import { LiveDateTimeBar } from '@/shared/components/LiveDateTimeBar';
 import { InstallPwaPrompt } from '@/shared/components/InstallPwaPrompt';
+import { TestModeOverlay } from '@/shared/components/TestModeOverlay';
 
-type PanelType = 'dashboard' | 'diet' | 'attendance';
+type PanelType = 'dashboard' | 'diet' | 'attendance' | 'workout';
 
 export function DesktopShell() {
   const [activePanel, setActivePanel] = useState<PanelType>(() => {
     if (typeof window !== 'undefined') {
       const saved = sessionStorage.getItem('desktop_active_panel');
-      if (saved === 'dashboard' || saved === 'diet' || saved === 'attendance') {
-        return saved;
+      if (saved === 'dashboard' || saved === 'diet' || saved === 'attendance' || saved === 'workout') {
+        return saved as PanelType;
       }
     }
     return 'dashboard';
@@ -32,6 +33,7 @@ export function DesktopShell() {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'diet', label: 'Diet Plan', icon: Utensils },
     { id: 'attendance', label: 'Attendance', icon: CheckCircle },
+    { id: 'workout', label: 'Workout Cycle', icon: Dumbbell },
   ] as const;
 
   return (
@@ -113,9 +115,11 @@ export function DesktopShell() {
               {activePanel === 'dashboard' && <DesktopDashboard />}
               {activePanel === 'diet' && <DesktopDiet />}
               {activePanel === 'attendance' && <DesktopAttendance />}
+              {activePanel === 'workout' && <DesktopWorkout />}
             </motion.div>
           </AnimatePresence>
         </div>
+        <TestModeOverlay />
       </div>
     </div>
   );

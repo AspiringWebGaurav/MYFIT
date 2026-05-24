@@ -22,6 +22,7 @@ export function AdminRequestsPanel() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchRequests();
     // Real-time polling fallback
     const interval = setInterval(fetchRequests, 5000);

@@ -30,9 +30,11 @@ export function InstallPwaPrompt({ variant = 'mobile' }: InstallPwaPromptProps) 
   useEffect(() => {
     // Check if currently running in standalone mode
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       || ('standalone' in navigator && (navigator as any).standalone === true);
     
     if (isStandalone) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsInstalled(true);
       return;
     }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export const MOCK_USERS = {
   approved: {
     email: 'approved@test.com',

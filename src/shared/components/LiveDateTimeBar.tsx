@@ -1,23 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock } from 'lucide-react';
+import { getGlobalDate } from '@/shared/utils/testMode';
 
 export function LiveDateTimeBar() {
   const [mounted, setMounted] = useState(false);
   const [time, setTime] = useState<Date | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
-    setTime(new Date());
+    setTime(getGlobalDate());
 
     // Smart Time Synchronization: Precisely align with the exact real-time second boundary
     let intervalId: NodeJS.Timeout;
     
     const syncTimeout = setTimeout(() => {
-      setTime(new Date());
+      setTime(getGlobalDate());
       intervalId = setInterval(() => {
-        setTime(new Date());
+        setTime(getGlobalDate());
       }, 1000);
-    }, 1000 - new Date().getMilliseconds());
+    }, 1000 - new Date().getMilliseconds()); // We still use real new Date() just for the millisecond offset calculation
 
     return () => {
       clearTimeout(syncTimeout);

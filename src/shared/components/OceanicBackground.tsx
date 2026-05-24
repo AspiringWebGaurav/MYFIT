@@ -51,6 +51,7 @@ export function OceanicBackground({
   const cursorGlow = useMotionTemplate`radial-gradient(250px circle at ${activeX}px ${activeY}px, rgba(255, 255, 255, 0.08), transparent 70%)`;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     let particleCount = 30;
     if (typeof navigator !== 'undefined') {

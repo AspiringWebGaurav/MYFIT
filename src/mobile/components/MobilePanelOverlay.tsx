@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/shared/store/useAppStore';
-import { MobileAttendance, MobileDiet, MobileSettings } from '../panels/MobilePanels';
+import { MobileAttendance, MobileDiet, MobileSettings, MobileWorkout } from '../panels/MobilePanels';
 import { MenuHub } from './MenuHub';
 
 export function MobilePanelOverlay() {
@@ -36,10 +36,11 @@ export function MobilePanelOverlay() {
             {/* Soft gradient from top to blend the overlay */}
             <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
             
-            <div className={`min-h-full flex flex-col ${activePanel === 'diet' ? 'pb-24' : 'pb-6'}`}>
+            <div className={`min-h-full flex flex-col ${activePanel === 'diet' ? 'pb-24' : ''}`}>
               {activePanel === 'attendance' && <MobileAttendance />}
               {activePanel === 'diet' && <MobileDiet />}
               {activePanel === 'settings' && <MobileSettings />}
+              {activePanel === 'workout' && <MobileWorkout />}
             </div>
           </motion.div>
         )}

@@ -3,6 +3,10 @@ import { db } from '../firebase/config';
 import { doc, setDoc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { useAuthStore } from './useAuthStore';
 
+// TEST_MODE_ONLY
+import { APP_TEST_MODE, getTestTodayString, getTestCurrentDay } from '../utils/testMode';
+import { useSandboxStore } from './useSandboxStore';
+
 interface AttendanceState {
   isAttendedToday: boolean;
   loading: boolean;
@@ -29,7 +33,11 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
   checkAttendanceStatus: async (userId: string, force = false) => {
     // 1. Hydration & Auth Check
     const authState = useAuthStore.getState();
-    if (!authState.isInitialAuthReady || !authState.user || authState.user.email !== 'gauravpatil9262@gmail.com') {
+    const isValidUser = APP_TEST_MODE 
+      ? authState.user?.email === 'sandbox@myfit.test'
+      : authState.user?.email === 'gauravpatil9262@gmail.com';
+
+    if (!authState.isInitialAuthReady || !authState.user || !isValidUser) {
       set({ loading: false, isAttendedToday: false });
       return;
     }
@@ -37,8 +45,22 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
     // Smart Reconciliation: Cache TTL of 5 minutes to prevent redundant reads on navigation
     const now = Date.now();
     const lastChecked = get().lastCheckedAt;
-    if (!force && lastChecked && (now - lastChecked < 5 * 60 * 1000)) {
+    if (!force && lastChecked && (now - lastChecked < 5 * 60 * 1000) && !APP_TEST_MODE) {
       set({ loading: false });
+      return;
+    }
+
+    // TEST_MODE_ONLY
+    if (APP_TEST_MODE) {
+      set({ loading: true });
+      const today = getTestTodayString();
+      const isAttended = !!useSandboxStore.getState().testAttendanceHistory[today];
+      set((state) => ({ 
+        isAttendedToday: isAttended, 
+        loading: false, 
+        lastCheckedAt: Date.now(),
+        attendanceHistory: { ...state.attendanceHistory, [today]: isAttended }
+      }));
       return;
     }
 
@@ -66,15 +88,31 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
   markAttendance: async (userId: string) => {
     // 1. Hydration & Auth Check
     const authState = useAuthStore.getState();
-    if (!authState.isInitialAuthReady || !authState.user || authState.user.email !== 'gauravpatil9262@gmail.com') {
+    const isValidUser = APP_TEST_MODE 
+      ? authState.user?.email === 'sandbox@myfit.test'
+      : authState.user?.email === 'gauravpatil9262@gmail.com';
+
+    if (!authState.isInitialAuthReady || !authState.user || !isValidUser) {
       console.error("Unauthorized: Cannot mark attendance before auth hydration or invalid user.");
       return;
     }
 
     // 2. Sunday Holiday Check (Backend validation)
-    const date = new Date();
-    if (date.getDay() === 0) {
+    const currentDay = APP_TEST_MODE ? getTestCurrentDay() : new Date().getDay();
+    if (currentDay === 0) {
       console.error("Attendance disabled: Sunday is a mandated holiday.");
+      return;
+    }
+
+    // TEST_MODE_ONLY
+    if (APP_TEST_MODE) {
+      const today = getTestTodayString();
+      useSandboxStore.getState().markTestAttendance(today);
+      set((state) => ({ 
+        isAttendedToday: true, 
+        lastCheckedAt: Date.now(),
+        attendanceHistory: { ...state.attendanceHistory, [today]: true }
+      }));
       return;
     }
 
@@ -106,8 +144,18 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
     const monthStr = `${year}-${String(month).padStart(2, '0')}`;
     const { loadedMonths, attendanceHistory } = get();
     
-    if (loadedMonths.includes(monthStr)) {
+    if (loadedMonths.includes(monthStr) && !APP_TEST_MODE) {
       return; 
+    }
+
+    // TEST_MODE_ONLY
+    if (APP_TEST_MODE) {
+      const sandboxHistory = useSandboxStore.getState().testAttendanceHistory;
+      set({ 
+        attendanceHistory: { ...attendanceHistory, ...sandboxHistory },
+        loadedMonths: [...loadedMonths, monthStr]
+      });
+      return;
     }
 
     try {

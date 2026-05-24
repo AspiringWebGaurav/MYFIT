@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useAppStore, MobilePanel } from '@/shared/store/useAppStore';
-import { CheckCircle2, Utensils, Lock, Settings } from 'lucide-react';
+import { CheckCircle2, Utensils, Lock, Settings, Dumbbell } from 'lucide-react';
 import { useState } from 'react';
 
 interface MenuCardProps {
@@ -107,6 +107,12 @@ export function MenuHub() {
           title="Diet Plan" 
           icon={Utensils} 
           delay={0.2} 
+        />
+        <MenuCard 
+          id="workout" 
+          title="Workout Cycle" 
+          icon={Dumbbell} 
+          delay={0.3} 
         />
       </div>
     </div>

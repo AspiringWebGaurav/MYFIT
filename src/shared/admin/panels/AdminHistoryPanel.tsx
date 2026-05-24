@@ -23,6 +23,7 @@ export function AdminHistoryPanel() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchRequests();
     const interval = setInterval(fetchRequests, 10000);
     return () => clearInterval(interval);
