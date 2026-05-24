@@ -1,7 +1,10 @@
 // TEST_MODE_ONLY
 import { useSandboxStore } from '../store/useSandboxStore';
 
-export const APP_TEST_MODE = true;
+// Change this to true to enable the sandbox in development.
+// It is strictly disabled in production builds.
+const ENABLE_TEST_MODE_IN_DEV = true;
+export const APP_TEST_MODE = process.env.NODE_ENV !== 'production' && ENABLE_TEST_MODE_IN_DEV;
 export const IS_TEST_MODE = APP_TEST_MODE; 
 
 export const getTestTodayString = () => {
