@@ -40,21 +40,21 @@ export function MobileAdminShell() {
     <div className="relative flex flex-col h-[100dvh] w-full bg-[#020B1A] text-zinc-100 overflow-hidden font-sans">
       <OceanicBackground interactive={false} variant="full" />
       
-      {/* Top Header */}
-      <div className="absolute top-[env(safe-area-inset-top,24px)] w-full px-6 flex justify-between items-center z-50 pointer-events-none mt-4 sm:mt-6">
-        <div className="pointer-events-auto drop-shadow-lg scale-[0.85] sm:scale-95 origin-left">
+      {/* Static Header Space to prevent overlap during scroll */}
+      <div className="shrink-0 w-full z-50 px-6 flex justify-between items-center relative" style={{ height: 'var(--datetime-height)', marginTop: 'calc(var(--safe-top) + var(--header-top-padding))' }}>
+        <div className="scale-[0.85] sm:scale-95 origin-left drop-shadow-lg">
           <LiveDateTimeBar />
         </div>
         <button 
           onClick={handleLogout} 
-          className="pointer-events-auto p-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full hover:bg-red-500/20 transition-all backdrop-blur-md"
+          className="p-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full hover:bg-red-500/20 transition-all backdrop-blur-md"
         >
           <LogOut className="h-4 w-4" />
         </button>
       </div>
 
       {/* Main Content Area */}
-      <div className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden pt-28 pb-24 px-4 hide-scrollbar">
+      <div className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden pt-4 pb-24 px-4 hide-scrollbar mobile-scroll">
         <AnimatePresence mode="wait">
           <motion.div
             key={activePanel}

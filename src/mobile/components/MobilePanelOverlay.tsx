@@ -1,6 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/shared/store/useAppStore';
-import { MobileAttendance, MobileDiet, MobileSettings, MobileWorkout } from '../panels/MobilePanels';
+import { MobileAttendance, MobileDiet, MobileDietVault, MobileSettings, MobileWorkout } from '../panels/MobilePanels';
+import { MobileGymGallery } from '../panels/MobileGymGallery';
+import { MobileTrainingJournal } from './MobileTrainingJournal';
 import { MenuHub } from './MenuHub';
 
 export function MobilePanelOverlay() {
@@ -13,11 +15,13 @@ export function MobilePanelOverlay() {
         animate={{
           scale: activePanel === 'menu' ? 1 : 0.95,
           opacity: activePanel === 'menu' ? 1 : 0.3,
-          filter: activePanel === 'menu' ? 'blur(0px)' : 'blur(4px)',
         }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         className="absolute inset-0 z-10"
-        style={{ pointerEvents: activePanel === 'menu' ? 'auto' : 'none' }}
+        style={{ 
+          pointerEvents: activePanel === 'menu' ? 'auto' : 'none',
+          willChange: 'transform, opacity'
+        }}
       >
         <MenuHub />
       </motion.div>
@@ -31,16 +35,17 @@ export function MobilePanelOverlay() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 100, scale: 0.98 }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className={`absolute inset-0 z-20 ${activePanel === 'diet' ? 'overflow-y-auto hide-scrollbar' : 'overflow-hidden'} bg-black/40 backdrop-blur-md`}
+            className={`absolute inset-0 z-20 overflow-hidden bg-[#020B1A]`}
+            style={{ transform: 'translateZ(0)' }}
           >
-            {/* Soft gradient from top to blend the overlay */}
-            <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
-            
-            <div className={`min-h-full flex flex-col ${activePanel === 'diet' ? 'pb-24' : ''}`}>
+            <div className={`h-full w-full flex flex-col`}>
               {activePanel === 'attendance' && <MobileAttendance />}
               {activePanel === 'diet' && <MobileDiet />}
+              {activePanel === 'dietVault' && <MobileDietVault />}
               {activePanel === 'settings' && <MobileSettings />}
               {activePanel === 'workout' && <MobileWorkout />}
+              {activePanel === 'gymGallery' && <MobileGymGallery />}
+              {activePanel === 'trainingJournal' && <MobileTrainingJournal />}
             </div>
           </motion.div>
         )}

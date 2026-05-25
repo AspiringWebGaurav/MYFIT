@@ -11,7 +11,10 @@ import { LoginCalendar } from "@/shared/components/LoginCalendar";
 import { getGlobalDate, APP_TEST_MODE, getTestCurrentDay } from "@/shared/utils/testMode";
 import { useSandboxStore } from "@/shared/store/useSandboxStore";
 import { useWorkoutStore, TrainingType } from "@/shared/store/useWorkoutStore";
-import { Target, Edit3, Dumbbell } from "lucide-react";
+import { Target, Edit3, Dumbbell, FileText, Download, Upload, Eye, X, RefreshCw } from "lucide-react";
+import { useRef } from "react";
+import { useDietVaultStore } from "@/shared/store/useDietVaultStore";
+import { useDietVaultStorage } from "@/shared/hooks/useDietVaultStorage";
 
 export function DesktopDashboard() {
   const user = useAuthStore(state => state.user);
@@ -504,6 +507,248 @@ export function DesktopWorkout() {
                   <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_2s_infinite]" />
                 )}
               </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+export function DesktopDietVault() {
+  const user = useAuthStore(state => state.user);
+  const { dietPlan, subscribeToPlan, unsubscribeFromPlan, isLoading } = useDietVaultStore();
+  const { uploadDiet, downloadDiet, isUploading, uploadProgress, isUploaded, downloadState } = useDietVaultStorage();
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [viewingPdf, setViewingPdf] = useState(false);
+
+  useEffect(() => {
+    if (user) subscribeToPlan(user.uid);
+    return () => unsubscribeFromPlan();
+  }, [user, subscribeToPlan, unsubscribeFromPlan]);
+
+  const handleUploadClick = () => fileInputRef.current?.click();
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    try {
+      await uploadDiet(file, user.uid);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!dietPlan) return;
+    await downloadDiet(dietPlan.storagePath, dietPlan.fileName);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  return (
+    <div className="flex flex-col gap-6 h-full pb-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <input 
+        type="file" 
+        accept="application/pdf" 
+        ref={fileInputRef} 
+        className="hidden" 
+        onChange={handleFileChange} 
+      />
+
+      <header className="flex items-start justify-between shrink-0">
+        <div>
+          <h2 className="text-3xl font-semibold tracking-tight text-white">Diet Vault</h2>
+          <p className="text-zinc-400 mt-1">Your active nutrition protocol</p>
+        </div>
+        {viewingPdf && (
+          <Button 
+            variant="outline"
+            onClick={() => setViewingPdf(false)} 
+            className="bg-[#10202cb5] text-zinc-300 border-cyan-400/10 hover:bg-[#152a3bb5] hover:text-white"
+          >
+            <X className="w-4 h-4 mr-2" />
+            Close PDF
+          </Button>
+        )}
+      </header>
+
+      <Card className="p-8 bg-[#0b1620a8] border-cyan-400/10 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] backdrop-blur-xl flex-1 flex flex-col overflow-hidden min-h-0 relative">
+        {viewingPdf && dietPlan ? (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="absolute inset-0 z-10 bg-[#0b1620a8] backdrop-blur-xl flex flex-col rounded-[inherit]"
+          >
+             <iframe 
+                src={`${dietPlan.fileUrl}#view=FitH`} 
+                className="w-full h-full border-none rounded-[inherit]"
+                title="Diet Plan PDF"
+              />
+          </motion.div>
+        ) : isLoading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <Loader2 className="w-10 h-10 text-cyan-500 animate-spin" />
+          </div>
+        ) : !dietPlan ? (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col flex-1 items-center justify-center text-center"
+          >
+            <div className="w-24 h-24 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
+              <FileText className="w-10 h-10 text-cyan-400" strokeWidth={1.5} />
+            </div>
+            <h3 className="text-2xl font-semibold text-zinc-100">No Active Diet Plan</h3>
+            <p className="text-zinc-400 mt-2 mb-8 max-w-md">Upload your personalized PDF to keep your protocol securely stored and accessible at all times.</p>
+            
+            <button 
+              onClick={handleUploadClick}
+              disabled={isUploading || isUploaded}
+              className={`h-14 px-10 rounded-2xl border font-bold tracking-widest uppercase text-sm transition-all flex items-center justify-center gap-3 ${
+                isUploaded 
+                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-[0_0_30px_rgba(16,185,129,0.2)]'
+                  : 'bg-[#10202cb5] text-zinc-300 border-cyan-400/10 hover:bg-[#152a3bb5] hover:text-white disabled:opacity-50 disabled:grayscale'
+              }`}
+            >
+              <AnimatePresence mode="wait">
+                {isUploading ? (
+                  <motion.div key="uploading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-3 w-48">
+                    <Loader2 className="w-5 h-5 animate-spin text-cyan-400 shrink-0" />
+                    <div className="flex-1 bg-black/40 h-2 rounded-full overflow-hidden border border-white/5">
+                      <div className="bg-cyan-400 h-full transition-all duration-300 shadow-[0_0_10px_rgba(34,211,238,0.5)]" style={{ width: `${uploadProgress}%` }} />
+                    </div>
+                  </motion.div>
+                ) : isUploaded ? (
+                  <motion.div key="success" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
+                    <Check className="w-5 h-5" strokeWidth={3} />
+                    <span>Uploaded ✓</span>
+                  </motion.div>
+                ) : (
+                  <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
+                    <Upload className="w-5 h-5" />
+                    <span>Upload PDF Protocol</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </button>
+          </motion.div>
+        ) : (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col flex-1 items-center justify-center overflow-hidden w-full max-w-2xl mx-auto"
+          >
+            <div className="w-full p-8 rounded-[32px] bg-gradient-to-br from-cyan-500/10 to-transparent border border-cyan-500/20 relative overflow-hidden flex flex-col items-center text-center shadow-[0_0_30px_rgba(6,182,212,0.1)]">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-500/10 via-transparent to-transparent" />
+              
+              <div className="w-16 h-16 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center mb-6 relative z-10 shadow-[0_0_20px_rgba(6,182,212,0.2)]">
+                <FileText className="w-8 h-8 text-cyan-400" strokeWidth={1.5} />
+              </div>
+
+              <div className="relative z-10 flex flex-col gap-2 w-full">
+                <span className="text-sm font-bold text-cyan-400/70 uppercase tracking-widest mb-1">Version {dietPlan.version}</span>
+                <h3 className="text-3xl font-bold tracking-tight text-white leading-tight truncate px-4">
+                  {dietPlan.fileName}
+                </h3>
+                
+                <div className="mt-6 flex items-center justify-center gap-6 bg-black/40 py-3 px-8 rounded-full border border-white/5 w-max mx-auto">
+                  <div className="flex flex-col items-center">
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Uploaded</span>
+                    <span className="text-sm font-medium text-zinc-300">{new Date(dietPlan.uploadedAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="w-px h-8 bg-white/10" />
+                  <div className="flex flex-col items-center">
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Size</span>
+                    <span className="text-sm font-medium text-zinc-300">{formatFileSize(dietPlan.fileSize)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <AnimatePresence>
+              {(downloadState.message && downloadState.status !== 'success') && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0, marginTop: 0 }} 
+                  animate={{ opacity: 1, height: 'auto', marginTop: 16 }} 
+                  exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                  className={`w-full p-4 rounded-2xl border flex flex-col items-center text-center overflow-hidden ${
+                    downloadState.status === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' :
+                    'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                  }`}
+                >
+                  <span className="font-bold text-sm">{downloadState.message}</span>
+                  {downloadState.subMessage && <span className="opacity-80 mt-1 text-xs">{downloadState.subMessage}</span>}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="flex w-full gap-4 mt-8">
+              <button 
+                onClick={() => setViewingPdf(true)}
+                className="flex-1 h-14 bg-[#10202cb5] hover:bg-[#152a3bb5] rounded-2xl border border-cyan-400/10 font-bold tracking-widest uppercase text-sm text-zinc-300 hover:text-white transition-all flex items-center justify-center gap-2"
+              >
+                <Eye className="w-5 h-5" />
+                View
+              </button>
+              
+              <button 
+                onClick={handleDownload}
+                disabled={downloadState.status !== 'idle' && downloadState.status !== 'error'}
+                className={`flex-1 h-14 rounded-2xl border font-bold tracking-widest uppercase text-sm transition-all flex items-center justify-center gap-2 ${
+                  downloadState.status === 'success' 
+                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+                    : downloadState.status === 'error'
+                      ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                      : 'bg-[#10202cb5] hover:bg-[#152a3bb5] border-cyan-400/10 text-cyan-400 disabled:opacity-50'
+                }`}
+              >
+                <AnimatePresence mode="wait">
+                  {downloadState.status === 'preparing' ? (
+                    <motion.div key="preparing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Preparing...</span>
+                    </motion.div>
+                  ) : (downloadState.status === 'downloading' || downloadState.status === 'slow' || downloadState.status === 'retry') ? (
+                    <motion.div key="downloading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>{downloadState.progress > 0 ? `Downloading ${downloadState.progress}%` : 'Downloading...'}</span>
+                    </motion.div>
+                  ) : downloadState.status === 'success' ? (
+                    <motion.div key="success" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
+                      <Check className="w-5 h-5" strokeWidth={3} />
+                      <span>Saved ✓</span>
+                    </motion.div>
+                  ) : downloadState.status === 'error' ? (
+                    <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
+                      <RefreshCw className="w-5 h-5" />
+                      <span>Retry</span>
+                    </motion.div>
+                  ) : (
+                    <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
+                      <Download className="w-5 h-5" />
+                      <span>Download</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </button>
+
+              <button 
+                onClick={handleUploadClick}
+                disabled={isUploading}
+                className="flex-1 h-14 bg-[#10202cb5] hover:bg-[#152a3bb5] rounded-2xl border border-cyan-400/10 font-bold tracking-widest uppercase text-sm text-zinc-300 hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+                {isUploading ? 'Syncing...' : 'Replace'}
+              </button>
             </div>
           </motion.div>
         )}

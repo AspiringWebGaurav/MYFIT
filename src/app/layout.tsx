@@ -5,6 +5,7 @@ import { PwaRegistry } from "@/components/pwa/PwaRegistry";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { AuthProvider } from "@/shared/components/AuthProvider";
 import { GlobalLoaderOverlay } from "@/shared/components/GlobalLoaderOverlay";
+import { ToastProvider } from "@/shared/components/ui/ToastProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -40,6 +41,7 @@ export default function RootLayout({
           {children}
         </AuthProvider>
         <GlobalLoaderOverlay />
+        <ToastProvider />
         <PwaRegistry />
         <InstallPrompt />
       </body>

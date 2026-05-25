@@ -8,9 +8,10 @@ export function Atmosphere() {
 
       {/* Subtle ambient lighting - very slow drift */}
       <motion.div
-        className="absolute -top-[20%] -left-[20%] w-[140%] h-[140%] opacity-30"
+        className="absolute -top-[50%] -left-[50%] w-[200%] h-[200%] opacity-30"
         animate={{
-          backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'],
+          x: ['0%', '-15%', '0%'],
+          y: ['0%', '-15%', '0%'],
         }}
         transition={{
           duration: 40,
@@ -19,7 +20,7 @@ export function Atmosphere() {
         }}
         style={{
           background: 'radial-gradient(circle at center, rgba(6, 182, 212, 0.05) 0%, transparent 60%)',
-          backgroundSize: '200% 200%',
+          willChange: 'transform',
         }}
       />
 

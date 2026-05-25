@@ -110,7 +110,7 @@ export function DesktopAdminShell() {
           </div>
         </div>
 
-        <div className="h-full w-full px-10 pb-10 pt-28 overflow-y-auto">
+        <div className="h-full w-full px-10 pb-10 pt-safe-page overflow-y-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={activePanel}

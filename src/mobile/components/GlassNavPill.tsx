@@ -14,8 +14,8 @@ export function GlassNavPill() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      className="absolute left-0 right-0 z-50 flex justify-center pointer-events-none"
-      style={{ top: 'env(safe-area-inset-top, 24px)', marginTop: '64px' }}
+      className="absolute left-0 right-0 z-40 flex justify-center pointer-events-none"
+      style={{ top: 'calc(var(--safe-top) + var(--header-top-padding) + var(--datetime-height) + var(--header-gap))', height: 'var(--menu-height)' }}
     >
       <motion.button
         whileTap={{ scale: 0.95 }}

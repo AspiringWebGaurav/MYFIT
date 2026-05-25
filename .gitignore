@@ -75,3 +75,6 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+
+# antigravity IDE
+.gemini/

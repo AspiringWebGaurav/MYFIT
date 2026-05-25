@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type MobilePanel = 'menu' | 'attendance' | 'diet' | 'progress' | 'workout' | 'settings';
+export type MobilePanel = 'menu' | 'attendance' | 'diet' | 'dietVault' | 'progress' | 'workout' | 'settings' | 'gymGallery' | 'trainingJournal';
 
 interface AppState {
   // Navigation

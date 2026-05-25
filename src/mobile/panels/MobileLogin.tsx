@@ -142,7 +142,7 @@ export function MobileLogin() {
         initial="hidden"
         animate="show"
         variants={staggerContainer}
-        className="z-10 flex w-full h-[100dvh] flex-col items-center px-8 pt-[12vh] pb-[6vh]"
+        className="z-10 flex w-full h-[100dvh] flex-col items-center px-8 pt-safe-page pb-[6vh]"
       >
         {/* Top Section - Enhanced Cinematic Hero */}
         <motion.div 

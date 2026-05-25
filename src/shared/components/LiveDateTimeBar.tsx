@@ -6,6 +6,8 @@ export function LiveDateTimeBar() {
   const [mounted, setMounted] = useState(false);
   const [time, setTime] = useState<Date | null>(null);
 
+  const barRef = React.useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
@@ -27,6 +29,23 @@ export function LiveDateTimeBar() {
     };
   }, []);
 
+  // Update dynamic height CSS variable
+  React.useLayoutEffect(() => {
+    if (!barRef.current) return;
+    
+    const updateHeight = () => {
+      if (barRef.current) {
+        document.documentElement.style.setProperty('--datetime-height', `${barRef.current.offsetHeight}px`);
+      }
+    };
+    
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(barRef.current);
+    
+    return () => observer.disconnect();
+  }, [mounted]);
+
   // SSR hydration safeguard & layout shift prevention
   if (!mounted || !time) {
     return (
@@ -41,7 +60,7 @@ export function LiveDateTimeBar() {
   const ampm = timeParts[1]; // "AM"
 
   return (
-    <div className="flex items-center justify-center w-max h-[42px] px-5 rounded-full bg-white/[0.02] border border-white/[0.06] backdrop-blur-md shadow-[0_4px_24px_rgba(0,0,0,0.2)] select-none">
+    <div ref={barRef} className="flex items-center justify-center w-max h-[42px] px-5 rounded-full bg-white/[0.02] border border-white/[0.06] backdrop-blur-md shadow-[0_4px_24px_rgba(0,0,0,0.2)] select-none">
       
       {/* Date Section */}
       <div className="flex items-center gap-2.5 shrink-0">

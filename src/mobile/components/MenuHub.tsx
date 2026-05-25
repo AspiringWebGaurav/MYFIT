@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { useAppStore, MobilePanel } from '@/shared/store/useAppStore';
-import { CheckCircle2, Utensils, Lock, Settings, Dumbbell } from 'lucide-react';
-import { useState } from 'react';
+import { CheckCircle2, Utensils, Lock, Settings, Dumbbell, FileText, ImageIcon, PenLine } from 'lucide-react';
+import React, { useState } from 'react';
 
 interface MenuCardProps {
   id: MobilePanel;
@@ -13,7 +13,7 @@ interface MenuCardProps {
   onClick?: () => void;
 }
 
-function MenuCard({ id, title, icon: Icon, delay, locked, subtitle, onClick }: MenuCardProps) {
+const MenuCard = React.memo(function MenuCard({ id, title, icon: Icon, delay, locked, subtitle, onClick }: MenuCardProps) {
   const setActivePanel = useAppStore(state => state.setActivePanel);
 
   const handleClick = () => {
@@ -58,7 +58,9 @@ function MenuCard({ id, title, icon: Icon, delay, locked, subtitle, onClick }: M
       </div>
     </motion.button>
   );
-}
+});
+
+import { MobilePageWrapper } from './layout/MobilePageWrapper';
 
 export function MenuHub() {
   const setActivePanel = useAppStore(state => state.setActivePanel);
@@ -72,49 +74,63 @@ export function MenuHub() {
     }, 300);
   };
 
-  return (
-    <div className="flex flex-col gap-4 px-6 pt-28 pb-32 w-full max-w-md mx-auto h-full overflow-y-auto hide-scrollbar">
-      <motion.div 
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        className="mb-8 mt-12 flex items-center justify-between"
-      >
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-white">MYFIT</h1>
-          <p className="text-zinc-500 text-sm mt-1">Your private fitness space.</p>
-        </div>
-        <motion.button 
-          onClick={handleSettingsClick}
-          animate={{ rotate: isRotating ? 90 : 0 }}
-          transition={{ duration: 0.3 }}
-          whileTap={{ scale: 0.9 }}
-          className="p-3 rounded-full bg-white/[0.03] border border-white/5 text-zinc-400 hover:text-white"
-        >
-          <Settings className="w-5 h-5" />
-        </motion.button>
-      </motion.div>
+  const settingsButton = (
+    <motion.button 
+      onClick={handleSettingsClick}
+      animate={{ rotate: isRotating ? 90 : 0 }}
+      transition={{ duration: 0.3 }}
+      whileTap={{ scale: 0.9 }}
+      className="p-3 rounded-full bg-white/[0.03] border border-white/5 text-zinc-400 hover:text-white"
+    >
+      <Settings className="w-5 h-5" />
+    </motion.button>
+  );
 
-      <div className="flex flex-col gap-4">
-        <MenuCard 
-          id="attendance" 
-          title="Daily Login" 
-          icon={CheckCircle2} 
-          delay={0.1} 
-        />
-        <MenuCard 
-          id="diet" 
-          title="Diet Plan" 
-          icon={Utensils} 
-          delay={0.2} 
-        />
-        <MenuCard 
-          id="workout" 
-          title="Workout Cycle" 
-          icon={Dumbbell} 
-          delay={0.3} 
-        />
-      </div>
-    </div>
+  return (
+    <MobilePageWrapper
+      title="MYFIT"
+      subtitle="Your private fitness space."
+      headerRight={settingsButton}
+      className="max-w-md mx-auto"
+      contentClassName="pt-4 flex flex-col gap-4"
+    >
+      <MenuCard 
+        id="attendance" 
+        title="Daily Login" 
+        icon={CheckCircle2} 
+        delay={0.1} 
+      />
+      <MenuCard 
+        id="diet" 
+        title="Diet Plan" 
+        icon={Utensils} 
+        delay={0.2} 
+      />
+      <MenuCard 
+        id="dietVault" 
+        title="Diet Vault" 
+        icon={FileText} 
+        delay={0.3} 
+      />
+      <MenuCard 
+        id="workout" 
+        title="Workout Cycle" 
+        icon={Dumbbell} 
+        delay={0.4} 
+      />
+      <MenuCard 
+        id="gymGallery" 
+        title="Gym Gallery" 
+        icon={ImageIcon} 
+        delay={0.5} 
+      />
+      <MenuCard 
+        id="trainingJournal" 
+        title="Training Journal" 
+        subtitle="Capture workout thoughts"
+        icon={PenLine} 
+        delay={0.6} 
+      />
+    </MobilePageWrapper>
   );
 }

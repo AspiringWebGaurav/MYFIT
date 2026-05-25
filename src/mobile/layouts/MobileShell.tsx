@@ -21,7 +21,7 @@ export function MobileShell() {
   useLayoutEffect(() => {
     if (typeof window !== 'undefined') {
       const saved = sessionStorage.getItem('mobile_active_panel');
-      const validPanels = ['menu', 'attendance', 'diet', 'progress', 'workout', 'settings'];
+      const validPanels = ['menu', 'attendance', 'diet', 'dietVault', 'progress', 'workout', 'settings', 'gymGallery', 'trainingJournal'];
       if (saved && validPanels.includes(saved) && saved !== useAppStore.getState().activePanel) {
         useAppStore.setState({ activePanel: saved as any });
       }
@@ -73,7 +73,10 @@ export function MobileShell() {
             className="absolute inset-0 z-10"
           >
             {/* Live Date Time Bar (Top Centered) */}
-            <div className="absolute top-[env(safe-area-inset-top,24px)] left-1/2 -translate-x-1/2 z-50 pointer-events-none mt-4 sm:mt-6">
+            <div 
+              className="absolute left-1/2 -translate-x-1/2 z-50 pointer-events-none"
+              style={{ top: 'calc(var(--safe-top) + var(--header-top-padding))', height: 'var(--datetime-height)' }}
+            >
               <div className="pointer-events-auto scale-[0.85] sm:scale-95 origin-top drop-shadow-lg">
                 <LiveDateTimeBar />
               </div>

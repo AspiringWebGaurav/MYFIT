@@ -250,8 +250,13 @@ export function OceanicBackground({
           fill="none"
           stroke="url(#waveGrad2)"
           strokeWidth="0.15"
-          animate={{ d: ["M-10,85 Q30,65 60,85 T110,85", "M-10,85 Q30,115 60,85 T110,85", "M-10,85 Q30,65 60,85 T110,85"] }}
+          animate={
+            isMobile
+              ? { opacity: [0.5, 0.9, 0.5], y: ["0%", "-2%", "0%"] }
+              : { d: ["M-10,85 Q30,65 60,85 T110,85", "M-10,85 Q30,115 60,85 T110,85", "M-10,85 Q30,65 60,85 T110,85"] }
+          }
           transition={{ duration: 16, repeat: Infinity, ease: "easeInOut", delay: 4 }}
+          style={{ willChange: isMobile ? 'opacity, transform' : 'auto' }}
         />
       </motion.svg>
 

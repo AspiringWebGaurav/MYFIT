@@ -1,21 +1,23 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Utensils, CheckCircle, LogOut, Dumbbell } from 'lucide-react';
+import { LayoutDashboard, Utensils, CheckCircle, LogOut, Dumbbell, FileText, ImageIcon } from 'lucide-react';
 import { useAuthStore } from '@/shared/store/useAuthStore';
-import { DesktopDashboard, DesktopDiet, DesktopAttendance, DesktopWorkout } from '../panels/DesktopPanels';
+import { DesktopDashboard, DesktopDiet, DesktopAttendance, DesktopWorkout, DesktopDietVault } from '../panels/DesktopPanels';
+import { DesktopTrainingJournal } from '../panels/DesktopTrainingJournal';
+import { DesktopGallery } from '../panels/DesktopGallery';
 import { OceanicBackground } from '@/shared/components/OceanicBackground';
 import { Logo } from '@/shared/components/Logo';
 import { LiveDateTimeBar } from '@/shared/components/LiveDateTimeBar';
 import { InstallPwaPrompt } from '@/shared/components/InstallPwaPrompt';
 import { TestModeOverlay } from '@/shared/components/TestModeOverlay';
 
-type PanelType = 'dashboard' | 'diet' | 'attendance' | 'workout';
+type PanelType = 'dashboard' | 'diet' | 'attendance' | 'workout' | 'dietVault' | 'settings' | 'progress' | 'gymGallery' | 'trainingJournal';
 
 export function DesktopShell() {
   const [activePanel, setActivePanel] = useState<PanelType>(() => {
     if (typeof window !== 'undefined') {
       const saved = sessionStorage.getItem('desktop_active_panel');
-      if (saved === 'dashboard' || saved === 'diet' || saved === 'attendance' || saved === 'workout') {
+      if (saved === 'dashboard' || saved === 'diet' || saved === 'attendance' || saved === 'workout' || saved === 'dietVault' || saved === 'settings' || saved === 'progress') {
         return saved as PanelType;
       }
     }
@@ -32,8 +34,11 @@ export function DesktopShell() {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'diet', label: 'Diet Plan', icon: Utensils },
+    { id: 'dietVault', label: 'Diet Vault', icon: FileText },
     { id: 'attendance', label: 'Attendance', icon: CheckCircle },
     { id: 'workout', label: 'Workout Cycle', icon: Dumbbell },
+    { id: 'trainingJournal', label: 'Training Journal', icon: FileText },
+    { id: 'gymGallery', label: 'Gym Gallery', icon: ImageIcon },
   ] as const;
 
   return (
@@ -102,7 +107,7 @@ export function DesktopShell() {
           </div>
         </div>
 
-        <div className="h-full w-full px-10 pb-10 pt-28 overflow-y-auto">
+        <div className="h-full w-full px-10 pb-10 pt-safe-page overflow-y-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={activePanel}
@@ -114,8 +119,11 @@ export function DesktopShell() {
             >
               {activePanel === 'dashboard' && <DesktopDashboard />}
               {activePanel === 'diet' && <DesktopDiet />}
+              {activePanel === 'dietVault' && <DesktopDietVault />}
               {activePanel === 'attendance' && <DesktopAttendance />}
               {activePanel === 'workout' && <DesktopWorkout />}
+              {activePanel === 'trainingJournal' && <DesktopTrainingJournal />}
+              {activePanel === 'gymGallery' && <DesktopGallery />}
             </motion.div>
           </AnimatePresence>
         </div>
