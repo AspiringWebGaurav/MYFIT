@@ -1,3 +1,5 @@
+process.env.NEXT_TELEMETRY_DISABLED = "1";
+
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -17,7 +19,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: '/:file*(svg|png|jpg|ico)',
+        source: '/:file*(svg|png|jpg|ico|woff|woff2|ttf|otf)',
         headers: [
           {
             key: 'Cache-Control',

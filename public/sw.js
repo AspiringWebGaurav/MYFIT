@@ -39,21 +39,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 1. Next.js Static Assets (_next/static): Stale-While-Revalidate
-  // They are hashed, so they are safe to cache.
+  // 1. Next.js Static Assets (_next/static): Cache-First
+  // Hashed build chunks are immutable and never change.
   if (url.pathname.startsWith('/_next/static/')) {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
-        const fetchPromise = fetch(event.request).then((networkResponse) => {
-          if (networkResponse.ok) {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, networkResponse.clone());
+              cache.put(event.request, responseToCache);
             });
           }
           return networkResponse;
-        }).catch(() => {});
-        
-        return cachedResponse || fetchPromise;
+        });
       })
     );
     return;
@@ -77,19 +79,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Other generic assets (Images, Fonts, etc.): Stale-While-Revalidate
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
-        // Only cache basic local requests, avoid caching opaque 3rd party responses blindly
-        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, networkResponse.clone());
-          });
+  // 3. Static local media and assets (Images, Fonts, Icons): Cache-First with Network Fallback
+  if (
+    url.pathname.startsWith('/icons/') ||
+    /\.(png|jpg|jpeg|webp|svg|ico|woff|woff2|ttf|otf)$/i.test(url.pathname)
+  ) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
         }
-        return networkResponse;
-      }).catch(() => {});
-      return cachedResponse || fetchPromise;
-    })
-  );
+        return fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return networkResponse;
+        });
+      })
+    );
+    return;
+  }
 });

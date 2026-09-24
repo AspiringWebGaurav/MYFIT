@@ -3,7 +3,6 @@
 import { adminDb } from "@/shared/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { checkAdminStatus } from "./adminAuth";
-import { revalidatePath } from "next/cache";
 
 export interface AccessRequest {
   id: string;
@@ -47,7 +46,6 @@ export async function approveRequest(id: string, email: string) {
     updatedBy: 'admin'
   });
 
-  revalidatePath('/admin');
   return { success: true };
 }
 
@@ -62,7 +60,6 @@ export async function rejectRequest(id: string) {
     updatedBy: 'admin'
   });
   
-  revalidatePath('/admin');
   return { success: true };
 }
 
@@ -77,7 +74,6 @@ export async function revokeRequest(id: string) {
     updatedBy: 'admin'
   });
   
-  revalidatePath('/admin');
   return { success: true };
 }
 
@@ -100,7 +96,6 @@ export async function deleteRequest(id: string, email: string) {
   }
 
   await batch.commit();
-  revalidatePath('/admin');
   return { success: true };
 }
 

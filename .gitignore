@@ -81,6 +81,8 @@ playwright/.cache/
 
 # AI & IDE agents
 .gemini/
+.antigravity/
+.agents/
 .claude/
 CLAUDE.md
 AGENTS.md

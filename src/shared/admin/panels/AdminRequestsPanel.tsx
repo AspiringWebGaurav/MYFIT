@@ -35,25 +35,6 @@ export function AdminRequestsPanel() {
 
   useEffect(() => {
     fetchRequests();
-
-    // Smart Focus & Visibility Revalidation (NO dumb setInterval loop)
-    // Only revalidates if user returns to tab after at least 2 minutes
-    const handleRevalidation = () => {
-      if (document.visibilityState === 'visible') {
-        const elapsed = Date.now() - lastFetchTimeRef.current;
-        if (elapsed > 120000) { // 2 minutes cooldown
-          fetchRequests(true);
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleRevalidation);
-    window.addEventListener('focus', handleRevalidation);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleRevalidation);
-      window.removeEventListener('focus', handleRevalidation);
-    };
   }, [fetchRequests]);
 
   const handleApprove = async (id: string, email: string) => {

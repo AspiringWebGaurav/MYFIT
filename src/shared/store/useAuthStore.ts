@@ -287,6 +287,17 @@ export const useAuthStore = create<AuthState>()(
         return;
       }
 
+      // If user is already active and subscribed to live Firestore access sync, avoid redundant Server Action invocations
+      const currentState = get();
+      if (
+        currentState.user?.email?.toLowerCase() === userEmail &&
+        (currentState.authStatus === 'approved' || currentState.authStatus === 'success') &&
+        unsubscribeAccessListener
+      ) {
+        set({ isInitialAuthReady: true });
+        return;
+      }
+
       let accountStatus = 'unrequested';
       if (userEmail) {
         const res = await checkAccountStatus(userEmail);
