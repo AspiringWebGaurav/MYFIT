@@ -20,6 +20,7 @@ export async function getPendingRequests(): Promise<AccessRequest[]> {
   const snapshot = await adminDb.collection('access_requests')
     .where('status', '==', 'pending')
     .orderBy('timestamp', 'desc')
+    .limit(100)
     .get();
 
   return snapshot.docs.map(doc => {
@@ -107,11 +108,16 @@ export async function getHistoryRequests(): Promise<AccessRequest[]> {
   const isAdmin = await checkAdminStatus();
   if (!isAdmin) throw new Error("Unauthorized");
 
-  // Fetch all to avoid requiring a composite index for where() + orderBy()
-  const snapshot = await adminDb.collection('access_requests').get();
+  // Fetch with limit to prevent unbounded document transfer and long function execution
+  const snapshot = await adminDb.collection('access_requests')
+    .orderBy('timestamp', 'desc')
+    .limit(100)
+    .get();
   
-  // Also fetch legacy approved_users to show them in history before they auto-migrate
-  const legacySnapshot = await adminDb.collection('approved_users').get();
+  // Also fetch legacy approved_users (capped to 50)
+  const legacySnapshot = await adminDb.collection('approved_users')
+    .limit(50)
+    .get();
 
   const historyMap = new Map<string, AccessRequest>();
 

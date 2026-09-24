@@ -32,6 +32,8 @@ yarn-error.log*
 bun-debug.log*
 
 # local env files
+.env*
+!.env.example
 .env*.local
 .env
 .env.development.local
@@ -41,6 +43,7 @@ bun-debug.log*
 .env.production
 
 # vercel
+.vercel/
 .vercel
 
 # typescript
@@ -76,5 +79,12 @@ playwright-report/
 blob-report/
 playwright/.cache/
 
-# antigravity IDE
+# AI & IDE agents
 .gemini/
+.claude/
+CLAUDE.md
+AGENTS.md
+.cursor/
+.cursorrules
+.windsurf/
+.windsurfrules

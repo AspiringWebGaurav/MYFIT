@@ -1,50 +1,87 @@
 "use client";
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getPendingRequests, approveRequest, rejectRequest, AccessRequest } from '@/app/actions/adminRequests';
-import { Check, X, Clock, Mail, User } from 'lucide-react';
+import { Check, X, Clock, Mail, User, RefreshCw } from 'lucide-react';
 
 export function AdminRequestsPanel() {
   const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const lastFetchTimeRef = useRef(Date.now());
 
-  const fetchRequests = useCallback(async () => {
+  const fetchRequests = useCallback(async (silent = false) => {
+    if (silent) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
+
     try {
       const data = await getPendingRequests();
       setRequests(data);
+      setLastUpdated(new Date());
+      lastFetchTimeRef.current = Date.now();
     } catch (error) {
       console.error("Failed to fetch requests:", error);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchRequests();
-    // Real-time polling fallback
-    const interval = setInterval(() => {
-      if (!document.hidden) {
-        fetchRequests();
+
+    // Smart Focus & Visibility Revalidation (NO dumb setInterval loop)
+    // Only revalidates if user returns to tab after at least 2 minutes
+    const handleRevalidation = () => {
+      if (document.visibilityState === 'visible') {
+        const elapsed = Date.now() - lastFetchTimeRef.current;
+        if (elapsed > 120000) { // 2 minutes cooldown
+          fetchRequests(true);
+        }
       }
-    }, 30000);
-    return () => clearInterval(interval);
+    };
+
+    document.addEventListener('visibilitychange', handleRevalidation);
+    window.addEventListener('focus', handleRevalidation);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleRevalidation);
+      window.removeEventListener('focus', handleRevalidation);
+    };
   }, [fetchRequests]);
 
   const handleApprove = async (id: string, email: string) => {
     setActionLoading(id);
-    await approveRequest(id, email);
+    // Optimistic removal for instant responsive UI
     setRequests(prev => prev.filter(r => r.id !== id));
-    setActionLoading(null);
+    try {
+      await approveRequest(id, email);
+    } catch (error) {
+      console.error("Failed to approve request:", error);
+      fetchRequests(true);
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleReject = async (id: string) => {
     setActionLoading(id);
-    await rejectRequest(id);
+    // Optimistic removal for instant responsive UI
     setRequests(prev => prev.filter(r => r.id !== id));
-    setActionLoading(null);
+    try {
+      await rejectRequest(id);
+    } catch (error) {
+      console.error("Failed to reject request:", error);
+      fetchRequests(true);
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const formatDate = (timestamp: number) => {
@@ -56,14 +93,33 @@ export function AdminRequestsPanel() {
 
   return (
     <div className="flex flex-col gap-6 w-full h-full pb-20">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-          Pending Requests
-          <span className="bg-cyan-500/20 text-cyan-400 text-sm py-1 px-3 rounded-full font-medium border border-cyan-500/20">
-            {requests.length}
-          </span>
-        </h2>
-        <p className="text-zinc-400">Review and approve access for private MYFIT accounts.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
+            Pending Requests
+            <span className="bg-cyan-500/20 text-cyan-400 text-sm py-1 px-3 rounded-full font-medium border border-cyan-500/20">
+              {requests.length}
+            </span>
+          </h2>
+          <p className="text-zinc-400">Review and approve access for private MYFIT accounts.</p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {lastUpdated && (
+            <span className="text-xs text-zinc-500 hidden sm:inline-block">
+              Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+          <button
+            onClick={() => fetchRequests(true)}
+            disabled={isLoading || isRefreshing}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#0b1622] hover:bg-[#10202c] border border-cyan-500/20 text-cyan-400 text-xs font-medium transition-all shadow-sm disabled:opacity-50"
+            title="Refresh requests"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing || isLoading ? 'animate-spin' : ''}`} />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 w-full bg-[#071018]/50 border border-cyan-500/10 rounded-3xl p-6 backdrop-blur-md overflow-hidden relative">

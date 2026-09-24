@@ -125,15 +125,20 @@ export async function checkAccountStatus(email: string): Promise<AccountStatusRe
       }
     }
     
-    // Legacy support: Check for old random-ID requests just in case
+    // Legacy support: Check for old random-ID requests just in case (in-memory sort avoids composite index requirement)
     const existingQuery = await requestsRef
       .where('email', '==', lowerEmail)
-      .orderBy('timestamp', 'desc')
-      .limit(1)
+      .limit(5)
       .get();
       
     if (!existingQuery.empty) {
-      const latestRequest = existingQuery.docs[0].data();
+      const docs = existingQuery.docs.map(d => d.data());
+      docs.sort((a, b) => {
+        const tA = a.timestamp?.toMillis ? a.timestamp.toMillis() : (a.timestamp || 0);
+        const tB = b.timestamp?.toMillis ? b.timestamp.toMillis() : (b.timestamp || 0);
+        return tB - tA;
+      });
+      const latestRequest = docs[0];
       if (latestRequest.status === 'pending') return { status: 'pending' };
       if (latestRequest.status === 'rejected') return { status: 'rejected' };
       if (latestRequest.status === 'revoked') return { status: 'revoked' };

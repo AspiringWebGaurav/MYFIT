@@ -61,7 +61,7 @@ self.addEventListener('fetch', (event) => {
 
   // 2. HTML Navigation Requests (Auth shells etc): Network-First
   // Prevents stale login state and ghost sessions
-  if (event.request.mode === 'navigate' || event.request.headers.get('accept').includes('text/html')) {
+  if (event.request.mode === 'navigate' || event.request.headers.get('accept')?.includes('text/html')) {
     event.respondWith(
       fetch(event.request).then((networkResponse) => {
         return caches.open(CACHE_NAME).then((cache) => {
